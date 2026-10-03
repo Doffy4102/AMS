@@ -1,0 +1,83 @@
+<div x-data="{ activeTab: 'hardware' }" class="max-w-5xl">
+<div class="flex items-center gap-4 mb-8">
+  <img src="<%= user.avatar_url ? '/' + user.avatar_url : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&background=3b82f6&color=fff&size=96' %>" class="w-16 h-16 rounded-2xl" alt="">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">My Profile</h1>
+    <p class="text-sm text-slate-500"><%= user.email %> · <%= user.department_name || 'Unassigned' %> · <%= user.location_name || 'Global' %></p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <h2 class="font-heading font-semibold text-white mb-4">Profile Details</h2>
+    <form method="POST" action="<%= hams_url('/profile') %>" enctype="multipart/form-data" class="space-y-4">
+      <%- csrf_field %>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Name *</label>
+        <input type="text" name="name" required value="<%= user.name %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Email *</label>
+        <input type="email" name="email" required value="<%= user.email %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Avatar (JPG/PNG, max 2MB)</label>
+        <input type="file" name="avatar_file" accept="image/png,image/jpeg" class="w-full text-xs text-slate-400"></div>
+      <% if (user.avatar_url) { %>
+      <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="remove_avatar" value="1" class="rounded">Remove current avatar</label>
+      <% } %>
+      <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Update Profile</button>
+    </form>
+  </div>
+  <div class="space-y-6">
+    <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+      <h2 class="font-heading font-semibold text-white mb-4">Change Password</h2>
+      <form method="POST" action="<%= hams_url('/profile/password') %>" class="space-y-4">
+        <%- csrf_field %>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Current Password</label>
+          <input type="password" name="current_password" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">New Password (min 8)</label>
+          <input type="password" name="new_password" required minlength="8" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Confirm New Password</label>
+          <input type="password" name="confirm_password" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Update Password</button>
+      </form>
+    </div>
+    <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+      <h2 class="font-heading font-semibold text-white mb-3">Two-Factor Authentication</h2>
+      <% if (user.two_factor_enabled) { %>
+      <p class="text-sm text-emerald-400 mb-4 flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4"></i>2FA is enabled on your account.</p>
+      <form method="POST" action="<%= hams_url('/profile/2fa/disable') %>" data-confirm="Disable two-factor authentication?">
+        <%- csrf_field %>
+        <button class="px-5 py-2.5 rounded-xl bg-rose-600/15 text-rose-400 hover:bg-rose-600/25 text-sm font-medium">Disable 2FA</button>
+      </form>
+      <% } else { %>
+      <p class="text-sm text-slate-500 mb-4">Protect your account with a TOTP authenticator app.</p>
+      <a href="<%= hams_url('/profile/2fa/setup') %>" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium"><i data-lucide="shield" class="w-4 h-4"></i>Set Up 2FA</a>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<div class="flex flex-wrap gap-2 mb-4">
+  <% const tabs = [['hardware', 'Hardware', assets.length], ['accessories', 'Accessories', accessories.length], ['licenses', 'Licenses', licenses.length], ['requests', 'Requests', requests.length]]; %>
+  <% for (const [key, label, count] of tabs) { %>
+  <button @click="activeTab = '<%= key %>'" :class="activeTab === '<%= key %>' ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400'"
+          class="px-4 py-2 rounded-xl text-sm font-medium"><%= label %> (<%= count %>)</button>
+  <% } %>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+  <div x-show="activeTab === 'hardware'" class="space-y-2">
+    <% for (const a of assets) { %><div class="p-3 rounded-xl bg-white/[.02] text-sm"><span class="text-white font-medium"><%= a.name %></span> <span class="text-slate-500 font-mono text-xs ml-2"><%= a.asset_tag %></span></div><% } %>
+    <% if (!assets.length) { %><p class="text-sm text-slate-500">No hardware assigned.</p><% } %>
+  </div>
+  <div x-show="activeTab === 'accessories'" x-cloak class="space-y-2">
+    <% for (const a of accessories) { %><div class="p-3 rounded-xl bg-white/[.02] text-sm"><span class="text-white font-medium"><%= a.name %></span> <span class="text-slate-500 text-xs ml-2">Qty <%= a.qty %></span></div><% } %>
+    <% if (!accessories.length) { %><p class="text-sm text-slate-500">No accessories assigned.</p><% } %>
+  </div>
+  <div x-show="activeTab === 'licenses'" x-cloak class="space-y-2">
+    <% for (const l of licenses) { %><div class="p-3 rounded-xl bg-white/[.02] text-sm"><span class="text-white font-medium"><%= l.name %></span> <span class="text-slate-500 text-xs ml-2"><%= formatDate(l.expiration_date) || 'Perpetual' %></span></div><% } %>
+    <% if (!licenses.length) { %><p class="text-sm text-slate-500">No licenses assigned.</p><% } %>
+  </div>
+  <div x-show="activeTab === 'requests'" x-cloak class="space-y-2">
+    <% for (const r of requests) { %><div class="p-3 rounded-xl bg-white/[.02] text-sm flex justify-between"><span class="text-white font-medium"><%= r.title %></span><span class="text-slate-500 text-xs capitalize"><%= r.status %></span></div><% } %>
+    <% if (!requests.length) { %><p class="text-sm text-slate-500">No requests.</p><% } %>
+  </div>
+</div>
+</div>

@@ -1,0 +1,130 @@
+<div x-data="{ selected: [], selectAll: false }"
+     x-effect="if (selectAll) { selected = <%- JSON.stringify(assets.map(a => String(a.id))) %> } ">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Hardware Assets</h1>
+    <p class="text-sm text-slate-500 mt-1">Full lifecycle registry of enterprise hardware</p>
+  </div>
+  <a href="<%= hams_url('/assets/create') %>" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">
+    <i data-lucide="plus" class="w-4 h-4"></i>Add Asset
+  </a>
+</div>
+
+<!-- Bulk action bar -->
+<div x-show="selected.length > 0" x-cloak class="mb-4 flex flex-wrap items-center gap-3 bg-hams-card border border-blue-500/20 rounded-2xl px-5 py-3">
+  <span class="text-sm text-blue-400 font-medium" x-text="selected.length + ' asset(s) selected'"></span>
+  <form method="GET" action="<%= hams_url('/assets/labels') %>" class="flex items-center">
+    <template x-for="id in selected" :key="'l' + id"><input type="hidden" name="ids[]" :value="id"></template>
+    <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs"><i data-lucide="printer" class="w-3.5 h-3.5"></i>Labels</button>
+  </form>
+  <form method="POST" action="<%= hams_url('/assets/bulk-update') %>" class="flex items-center gap-2">
+    <%- csrf_field %>
+    <template x-for="id in selected" :key="'u' + id"><input type="hidden" name="ids[]" :value="id"></template>
+    <select name="status_label_id" class="px-3 py-1.5 rounded-lg text-xs bg-hams-bg border border-white/10">
+      <option value="">Update Status&hellip;</option>
+      <% for (const sl of references.status_labels) { %><option value="<%= sl.id %>"><%= sl.name %></option><% } %>
+    </select>
+    <button class="px-3 py-1.5 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 text-xs">Apply</button>
+  </form>
+  <form method="POST" action="<%= hams_url('/assets/bulk-delete') %>" data-confirm="Delete the selected assets?">
+    <%- csrf_field %>
+    <template x-for="id in selected" :key="'d' + id"><input type="hidden" name="ids[]" :value="id"></template>
+    <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Delete</button>
+  </form>
+</div>
+
+<!-- Search / filters -->
+<div class="bg-hams-card border border-white/5 rounded-3xl mb-6" x-data="{ filtersOpen: <%= (filters.category_id || filters.status_label_id || filters.location_id || filters.manufacturer_id) ? 'true' : 'false' %> }">
+  <div class="flex flex-wrap items-center gap-3 p-4">
+    <form method="GET" action="<%= hams_url('/assets') %>" class="flex-1 min-w-[200px] relative">
+      <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+      <input type="text" name="search" value="<%= filters.search %>" placeholder="Search name, tag, or serial..."
+             class="w-full pl-11 pr-10 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm outline-none focus:border-blue-500">
+      <% if (filters.search) { %><a href="<%= hams_url('/assets') %>" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">&times;</a><% } %>
+    </form>
+    <button @click="filtersOpen = !filtersOpen" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">
+      <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>Filters
+    </button>
+    <div class="flex items-center gap-2 text-xs text-slate-500"><i data-lucide="database" class="w-3.5 h-3.5"></i><%= total %> assets in inventory</div>
+  </div>
+  <div x-show="filtersOpen" x-cloak class="px-4 pb-4">
+    <form method="GET" action="<%= hams_url('/assets') %>" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <input type="hidden" name="search" value="<%= filters.search %>">
+      <% const filterDefs = [
+        ['category_id', 'All Categories', references.categories],
+        ['status_label_id', 'All Statuses', references.status_labels],
+        ['location_id', 'All Locations', references.locations],
+        ['manufacturer_id', 'All Manufacturers', references.manufacturers]
+      ]; %>
+      <% for (const [name, placeholder, options] of filterDefs) { %>
+      <select name="<%= name %>" onchange="this.form.submit()" class="px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value=""><%= placeholder %></option>
+        <% for (const o of options) { %><option value="<%= o.id %>" <%= String(filters[name]) === String(o.id) ? 'selected' : '' %>><%= o.name %></option><% } %>
+      </select>
+      <% } %>
+      <a href="<%= hams_url('/assets') %>" class="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-400">
+        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>Reset All Filters
+      </a>
+    </form>
+  </div>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[1000px] text-sm">
+      <thead>
+        <tr class="text-left text-xs text-slate-500 uppercase tracking-wider border-b border-white/5">
+          <th class="px-6 py-4 w-10"><input type="checkbox" x-model="selectAll" class="rounded"></th>
+          <th class="px-6 py-4">Asset</th>
+          <th class="px-6 py-4">Category</th>
+          <th class="px-6 py-4">Status</th>
+          <th class="px-6 py-4">Location</th>
+          <th class="px-6 py-4">Assigned To</th>
+          <th class="px-6 py-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const a of assets) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="<%= a.id %>" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="<%= hams_url('/assets/' + a.id) %>" class="font-medium text-white hover:text-blue-400 truncate block"><%= a.name %></a>
+                <div class="text-xs text-slate-500 font-mono"><%= a.asset_tag %><%= a.serial_number ? ' · ' + a.serial_number : '' %></div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs"><%= a.category_name || a.category || '—' %></span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: <%= (a.status_label_color || '#3b82f6') %>22; color: <%= a.status_label_color || '#3b82f6' %>;">
+              <%= a.status_label_name || a.status %>
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400"><%= a.location_name || '—' %></td>
+          <td class="px-6 py-4"><%= a.assigned_to_name ? a.assigned_to_name : '' %><% if (!a.assigned_to_name) { %><span class="italic text-slate-600">Unassigned</span><% } %></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="<%= hams_url('/assets/' + a.id) %>" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="<%= hams_url('/assets/' + a.id + '/edit') %>" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="<%= hams_url('/assets/labels') %>?ids[]=<%= a.id %>" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="<%= hams_url('/timeline/assets/' + a.id) %>" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="<%= hams_url('/assets/' + a.id + '/delete') %>" data-confirm="Delete asset <%= e(a.name) %>?">
+                <%- csrf_field %>
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!assets.length) { %>
+        <tr><td colspan="7" class="px-6 py-16 text-center text-slate-500">No assets found. <a href="<%= hams_url('/assets/create') %>" class="text-blue-400 hover:underline">Register the first asset</a>.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+  <%- await include('../components/pagination', { paginator, baseUrl }) %>
+</div>
+</div>

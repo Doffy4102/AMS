@@ -1,0 +1,195 @@
+<div x-data="{ addOpen: false, editOpen: false, editMovement: { id: null, reason: '', reference: '', notes: '' }, selected: [], selectAll: false }"
+     x-effect="if (selectAll) selected = <%- JSON.stringify(page.movements.map(m => String(m.id))) %>">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Stock Movements</h1>
+    <p class="text-sm text-slate-500 mt-1">Movement ledger for all inventory modules</p>
+  </div>
+  <button @click="addOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>Record Movement</button>
+</div>
+
+<!-- Current asset stock state -->
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden mb-6">
+  <h2 class="font-heading font-semibold text-white px-6 pt-6 pb-4">Current Asset Stock State</h2>
+  <div class="table-responsive max-h-72 overflow-y-auto">
+    <table class="w-full min-w-[800px] text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5 sticky top-0 bg-hams-card">
+        <th class="px-6 py-3">Asset</th><th class="px-6 py-3">Current Stock State</th><th class="px-6 py-3">Holder</th><th class="px-6 py-3">Location</th><th class="px-6 py-3">History</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const a of page.current_assets.slice(0, 50)) { %>
+        <tr>
+          <td class="px-6 py-3"><div class="text-white font-medium"><%= a.name %></div><div class="text-xs font-mono text-slate-500"><%= a.asset_tag %></div></td>
+          <td class="px-6 py-3"><span class="px-2.5 py-1 rounded-lg text-xs" style="background: <%= (a.status_label_color || '#3b82f6') %>22; color: <%= a.status_label_color || '#3b82f6' %>;"><%= a.status_label_name || a.status %></span></td>
+          <td class="px-6 py-3 text-slate-400"><%= a.assigned_to_name || '—' %></td>
+          <td class="px-6 py-3 text-slate-400"><%= a.location_name || '—' %></td>
+          <td class="px-6 py-3"><a href="<%= hams_url('/timeline/assets/' + a.id) %>" class="text-blue-400 text-xs hover:underline">Timeline</a></td>
+        </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div x-show="selected.length > 0" x-cloak class="mb-4 flex flex-wrap items-center gap-3 bg-hams-card border border-amber-500/20 rounded-2xl px-5 py-3">
+  <span class="text-sm text-amber-400 font-medium" x-text="selected.length + ' movement(s) selected'"></span>
+  <form method="POST" action="<%= hams_url('/stock-movements/bulk-rollback') %>" data-confirm="Roll back the selected movements? Stock will be adjusted and records deleted.">
+    <%- csrf_field %>
+    <template x-for="id in selected" :key="'r' + id"><input type="hidden" name="ids[]" :value="id"></template>
+    <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-xs"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i>Bulk Rollback</button>
+  </form>
+  <form method="POST" action="<%= hams_url('/stock-movements/bulk-export') %>">
+    <%- csrf_field %>
+    <template x-for="id in selected" :key="'e' + id"><input type="hidden" name="ids[]" :value="id"></template>
+    <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 text-slate-300 text-xs"><i data-lucide="download" class="w-3.5 h-3.5"></i>Export CSV</button>
+  </form>
+</div>
+
+<form method="GET" class="mb-4 flex flex-wrap gap-3">
+  <select name="module" onchange="this.form.submit()" class="px-3 py-2.5 rounded-xl bg-hams-card border border-white/10 text-sm">
+    <option value="">All Modules</option>
+    <% for (const [key, m] of Object.entries(page.modules)) { %>
+    <option value="<%= key %>" <%= page.filters.module_key === key ? 'selected' : '' %>><%= m.label %></option>
+    <% } %>
+  </select>
+  <input type="text" name="search" value="<%= page.filters.search %>" placeholder="Search reason, reference, notes..." class="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-hams-card border border-white/10 text-sm">
+  <button class="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">Filter</button>
+</form>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[1100px] text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-4 w-10"><input type="checkbox" x-model="selectAll" class="rounded"></th>
+        <th class="px-6 py-4">Item</th><th class="px-6 py-4">Module</th><th class="px-6 py-4">Type</th><th class="px-6 py-4">Direction</th>
+        <th class="px-6 py-4">Qty</th><th class="px-6 py-4">Reason</th><th class="px-6 py-4">Reference</th><th class="px-6 py-4">Created By</th><th class="px-6 py-4">Date</th><th class="px-6 py-4 text-right">Actions</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const m of page.movements) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="<%= m.id %>" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4"><div class="text-white font-medium"><%= m.item_name %></div><% if (m.asset_tag) { %><div class="text-xs font-mono text-slate-500"><%= m.asset_tag %></div><% } %></td>
+          <td class="px-6 py-4 text-slate-400"><%= m.module_label %></td>
+          <td class="px-6 py-4 text-slate-400"><%= m.movement_type || '—' %></td>
+          <td class="px-6 py-4"><span class="px-2 py-0.5 rounded text-xs <%= m.direction === 'in' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400' %>"><%= String(m.direction).toUpperCase() %></span></td>
+          <td class="px-6 py-4 text-slate-400"><%= m.quantity %></td>
+          <td class="px-6 py-4 text-slate-400 max-w-[160px] truncate"><%= m.reason || '—' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= m.reference || '—' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= m.created_by_name || 'System' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= formatDateTime(m.created_at) %></td>
+          <td class="px-6 py-4">
+            <div class="flex justify-end gap-1">
+              <button @click='editMovement = { id: <%= m.id %>, reason: <%- JSON.stringify(m.reason || '') %>, reference: <%- JSON.stringify(m.reference || '') %>, notes: <%- JSON.stringify(m.notes || '') %> }; editOpen = true'
+                      class="p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+              <form method="POST" action="<%= hams_url('/stock-movements/' + m.id + '/delete') %>" data-confirm="Roll back this movement? Stock will be adjusted and the record deleted.">
+                <%- csrf_field %><button class="p-2 rounded-lg hover:bg-amber-500/10 text-amber-400" title="Rollback"><i data-lucide="undo-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!page.movements.length) { %><tr><td colspan="11" class="px-6 py-12 text-center text-slate-500">No stock movements recorded.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add movement modal -->
+<div x-show="addOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-lg">
+    <h3 class="font-heading font-semibold text-white mb-4">Record Stock Movement</h3>
+    <form method="POST" action="<%= hams_url('/stock-movements') %>" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <%- csrf_field %>
+      <div class="sm:col-span-2">
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Item *</label>
+        <select name="item_ref" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— Select item —</option>
+          <% for (const item of page.items) { %>
+          <option value="<%= item.module_key %>:<%= item.id %>">[<%= page.modules[item.module_key].label %>] <%= item.name %></option>
+          <% } %>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Direction</label>
+        <select name="direction" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="in">Stock In</option><option value="out">Stock Out</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Quantity</label>
+        <input type="number" name="quantity" min="1" value="1" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Movement Type</label>
+        <input type="text" name="movement_type" placeholder="stock_in / transfer / adjustment" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Holder (User)</label>
+        <select name="holder_user_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const u of page.users) { %><option value="<%= u.id %>"><%= u.name %></option><% } %>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">From Location</label>
+        <select name="from_location_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const l of page.locations) { %><option value="<%= l.id %>"><%= l.name %></option><% } %>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">To Location</label>
+        <select name="to_location_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const l of page.locations) { %><option value="<%= l.id %>"><%= l.name %></option><% } %>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Vendor</label>
+        <select name="vendor_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const s of page.suppliers) { %><option value="<%= s.id %>"><%= s.name %></option><% } %>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Reason</label>
+        <input type="text" name="reason" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Reference</label>
+        <input type="text" name="reference" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+      </div>
+      <div class="sm:col-span-2">
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Notes</label>
+        <textarea name="notes" rows="2" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea>
+      </div>
+      <div class="sm:col-span-2 flex justify-end gap-2">
+        <button type="button" @click="addOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm text-white font-medium">Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit metadata modal -->
+<div x-show="editOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="editOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">Edit Movement Metadata</h3>
+    <form method="POST" :action="'<%= hams_url('/stock-movements') %>/' + editMovement.id + '/update'" class="space-y-3">
+      <%- csrf_field %>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1">Reason</label>
+        <input type="text" name="reason" x-model="editMovement.reason" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1">Reference</label>
+        <input type="text" name="reference" x-model="editMovement.reference" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1">Notes</label>
+        <textarea name="notes" rows="2" x-model="editMovement.notes" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea></div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" @click="editOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>

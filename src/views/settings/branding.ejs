@@ -1,0 +1,27 @@
+﻿<% const sv = (k, d = '') => (settings[k] ? (settings[k].value ?? d) : d); %>
+<div class="flex flex-col lg:flex-row gap-8">
+  <%- await include('_sidebar', { active_tab }) %>
+  <div class="flex-1 max-w-2xl">
+    <h1 class="font-heading text-2xl font-bold text-white mb-1">Workspace &amp; Branding</h1>
+    <p class="text-sm text-slate-500 mb-6">Application identity and visual theme</p>
+    <form method="POST" action="<%= hams_url('/settings/update') %>" enctype="multipart/form-data" class="bg-hams-card border border-white/5 rounded-3xl p-6 space-y-4">
+      <%- csrf_field %>
+      <input type="hidden" name="group" value="branding">
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Application Name</label>
+        <input type="text" name="app_name" value="<%= sv('app_name', 'HAMS Enterprise') %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Tagline</label>
+        <input type="text" name="app_tagline" value="<%= sv('app_tagline') %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Logo (PNG/JPG/WEBP/SVG, max 2MB)</label>
+        <input type="file" name="app_logo" accept=".png,.jpg,.jpeg,.webp,.svg" class="w-full text-xs text-slate-400">
+        <% if (sv('app_logo')) { %><img src="<%= sv('app_logo') %>" class="mt-2 h-12 rounded-lg" alt="Current logo"><% } %></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Primary Color</label>
+        <input type="color" name="primary_color" value="<%= sv('primary_color', '#3b82f6') %>" class="w-20 h-10 rounded-xl bg-hams-bg border border-white/10"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Sidebar Theme</label>
+        <select name="sidebar_theme" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="dark" <%= sv('sidebar_theme') === 'dark' ? 'selected' : '' %>>Dark</option>
+          <option value="light" <%= sv('sidebar_theme') === 'light' ? 'selected' : '' %>>Light</option>
+        </select></div>
+      <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Save Branding</button>
+    </form>
+  </div>
+</div>

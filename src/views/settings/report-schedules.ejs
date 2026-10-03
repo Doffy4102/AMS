@@ -1,0 +1,89 @@
+<div class="flex flex-col lg:flex-row gap-8" x-data="{ addOpen: false }">
+  <%- await include('_sidebar', { active_tab }) %>
+  <div class="flex-1">
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 class="font-heading text-2xl font-bold text-white mb-1">Report Schedules</h1>
+        <p class="text-sm text-slate-500">Automated recurring report generation</p>
+      </div>
+      <div class="flex gap-2">
+        <form method="POST" action="<%= hams_url('/settings/report-schedules/run-due') %>">
+          <%- csrf_field %><button class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">Run Due Now</button>
+        </form>
+        <button @click="addOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>New Schedule</button>
+      </div>
+    </div>
+
+    <div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+      <div class="table-responsive">
+        <table class="w-full min-w-[900px] text-sm">
+          <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+            <th class="px-6 py-4">Schedule</th><th class="px-6 py-4">Format</th><th class="px-6 py-4">Frequency</th><th class="px-6 py-4">Next Run</th><th class="px-6 py-4">Last Status</th><th class="px-6 py-4 text-right">Actions</th>
+          </tr></thead>
+          <tbody class="divide-y divide-white/5">
+            <% for (const s of schedules) { %>
+            <tr>
+              <td class="px-6 py-4"><div class="text-white font-medium"><%= s.name %></div><div class="text-xs text-slate-500"><%= s.module_key %></div></td>
+              <td class="px-6 py-4 text-slate-400 uppercase"><%= s.format %></td>
+              <td class="px-6 py-4 text-slate-400"><%= s.frequency %> @ <%= s.run_time %></td>
+              <td class="px-6 py-4 text-slate-400"><%= s.next_run_at ? formatDateTime(s.next_run_at) : '—' %></td>
+              <td class="px-6 py-4">
+                <% if (s.last_status === 'success') { %><span class="px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400">success</span>
+                <% } else if (s.last_status === 'failed') { %><span class="px-2 py-0.5 rounded text-xs bg-rose-500/10 text-rose-400" title="<%= s.last_message || '' %>">failed</span>
+                <% } else { %><span class="text-xs text-slate-500">—</span><% } %>
+              </td>
+              <td class="px-6 py-4">
+                <div class="flex justify-end gap-1">
+                  <% if (s.last_file_path) { %>
+                  <a href="<%= hams_url('/settings/report-schedules/' + s.id + '/download') %>" class="p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="download" class="w-4 h-4"></i></a>
+                  <% } %>
+                  <form method="POST" action="<%= hams_url('/settings/report-schedules/' + s.id + '/toggle') %>">
+                    <%- csrf_field %>
+                    <button class="px-2.5 py-1.5 rounded-lg text-xs <%= s.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-500' %>"><%= s.is_active ? 'Active' : 'Paused' %></button>
+                  </form>
+                  <form method="POST" action="<%= hams_url('/settings/report-schedules/' + s.id + '/delete') %>" data-confirm="Delete this schedule?">
+                    <%- csrf_field %><button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            <% } %>
+            <% if (!schedules.length) { %><tr><td colspan="6" class="px-6 py-10 text-center text-slate-500">No report schedules.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div x-show="addOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addOpen = false"></div>
+    <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+      <h3 class="font-heading font-semibold text-white mb-4">New Report Schedule</h3>
+      <form method="POST" action="<%= hams_url('/settings/report-schedules') %>" class="space-y-3">
+        <%- csrf_field %>
+        <div><label class="block text-xs text-slate-400 mb-1">Name *</label>
+          <input type="text" name="name" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div><label class="block text-xs text-slate-400 mb-1">Report Module *</label>
+          <select name="module_key" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+            <% for (const m of modules) { %><option value="<%= m.key %>"><%= m.label %></option><% } %>
+          </select></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs text-slate-400 mb-1">Format</label>
+            <select name="format" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"><option value="csv">CSV</option><option value="json">JSON</option></select></div>
+          <div><label class="block text-xs text-slate-400 mb-1">Delivery</label>
+            <select name="delivery" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"><option value="both">Both</option><option value="email">Email</option><option value="download">Download</option></select></div>
+          <div><label class="block text-xs text-slate-400 mb-1">Frequency</label>
+            <select name="frequency" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+          <div><label class="block text-xs text-slate-400 mb-1">Run Time</label>
+            <input type="time" name="run_time" value="08:00" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        </div>
+        <div><label class="block text-xs text-slate-400 mb-1">Recipients (comma-separated emails)</label>
+          <input type="text" name="recipients" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" @click="addOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

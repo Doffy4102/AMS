@@ -1,0 +1,78 @@
+<div class="flex flex-col lg:flex-row gap-8" x-data="{ showAdvanced: false, createOpen: false }">
+  <%- await include('_sidebar', { active_tab }) %>
+  <div class="flex-1">
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 class="font-heading text-2xl font-bold text-white mb-1">API Tokens</h1>
+        <p class="text-sm text-slate-500">Bearer tokens for the REST API v1 (/api/v1/assets)</p>
+      </div>
+      <button @click="createOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>Create Token</button>
+    </div>
+
+    <% if (flash.new_token) { %>
+    <div class="mb-6 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
+      <div class="text-sm font-semibold text-emerald-300 mb-2">Token created — copy it now, it will not be shown again:</div>
+      <code class="block bg-black/40 rounded-xl px-4 py-3 text-emerald-300 font-mono text-sm select-all break-all"><%= flash.new_token %></code>
+    </div>
+    <% } %>
+
+    <div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+      <div class="table-responsive">
+        <table class="w-full min-w-[800px] text-sm">
+          <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+            <th class="px-6 py-4">Token</th><th class="px-6 py-4">Last Used</th><th class="px-6 py-4">Expires</th><th class="px-6 py-4">Status</th><th class="px-6 py-4 text-right">Actions</th>
+          </tr></thead>
+          <tbody class="divide-y divide-white/5">
+            <% for (const t of tokens) { %>
+            <tr>
+              <td class="px-6 py-4"><div class="text-white font-medium"><%= t.name %></div><div class="text-xs font-mono text-slate-500"><%= t.masked_token %></div></td>
+              <td class="px-6 py-4 text-slate-400"><%= t.last_used_at ? formatDateTime(t.last_used_at) : 'Never' %></td>
+              <td class="px-6 py-4 text-slate-400"><%= t.expires_at ? formatDate(t.expires_at) : 'Never' %></td>
+              <td class="px-6 py-4">
+                <% if (t.is_revoked) { %><span class="px-2 py-0.5 rounded text-xs bg-rose-500/10 text-rose-400">Revoked</span>
+                <% } else if (t.is_expired) { %><span class="px-2 py-0.5 rounded text-xs bg-amber-500/10 text-amber-400">Expired</span>
+                <% } else { %><span class="px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400">Active</span><% } %>
+              </td>
+              <td class="px-6 py-4 text-right">
+                <% if (!t.is_revoked) { %>
+                <form method="POST" action="<%= hams_url('/settings/api-tokens/' + t.id + '/revoke') %>" data-confirm="Revoke this API token?">
+                  <%- csrf_field %><button class="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 text-xs">Revoke</button>
+                </form>
+                <% } %>
+              </td>
+            </tr>
+            <% } %>
+            <% if (!tokens.length) { %><tr><td colspan="5" class="px-6 py-10 text-center text-slate-500">No API tokens.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div x-show="createOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="createOpen = false"></div>
+    <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+      <h3 class="font-heading font-semibold text-white mb-4">Create API Token</h3>
+      <form method="POST" action="<%= hams_url('/settings/api-tokens') %>" class="space-y-4">
+        <%- csrf_field %>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Token Name *</label>
+          <input type="text" name="name" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Expires In</label>
+          <select name="expires_in" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+            <option value="">Never</option><option value="7d">7 days</option><option value="30d">30 days</option><option value="90d">90 days</option><option value="1y">1 year</option>
+          </select></div>
+        <button type="button" @click="showAdvanced = !showAdvanced" class="text-xs text-blue-400 hover:underline">Advanced: ability scoping</button>
+        <div x-show="showAdvanced" x-cloak class="max-h-40 overflow-y-auto space-y-1 border border-white/5 rounded-xl p-3">
+          <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="abilities[]" value="*" class="rounded">All abilities (*)</label>
+          <% for (const p of allPermissions) { %>
+          <label class="flex items-center gap-2 text-xs text-slate-400"><input type="checkbox" name="abilities[]" value="<%= p.name %>" class="rounded"><%= p.name %></label>
+          <% } %>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" @click="createOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create Token</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

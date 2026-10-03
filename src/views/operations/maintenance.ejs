@@ -1,0 +1,150 @@
+<div x-data="{ addOpen: false, editOpen: false, editRecord: {} }">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Maintenance</h1>
+    <p class="text-sm text-slate-500 mt-1">Repairs, inspections, warranty work, and upgrades</p>
+  </div>
+  <button @click="addOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>Add Record</button>
+</div>
+
+<form method="GET" class="mb-4 flex flex-wrap gap-3">
+  <input type="text" name="search" value="<%= filters.search %>" placeholder="Search title, asset, vendor..." class="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-hams-card border border-white/10 text-sm">
+  <select name="status" class="px-3 py-2.5 rounded-xl bg-hams-card border border-white/10 text-sm">
+    <option value="">All Statuses</option>
+    <% for (const s of ['open', 'in_progress', 'completed']) { %><option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <select name="type" class="px-3 py-2.5 rounded-xl bg-hams-card border border-white/10 text-sm">
+    <option value="">All Types</option>
+    <% for (const s of ['repair', 'warranty', 'inspection', 'upgrade']) { %><option value="<%= s %>" <%= filters.type === s ? 'selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <button class="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">Filter</button>
+</form>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[1100px] text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-4">Record</th><th class="px-6 py-4">Asset</th><th class="px-6 py-4">Vendor</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Next Due</th><th class="px-6 py-4">Downtime</th><th class="px-6 py-4">Cost</th><th class="px-6 py-4 text-right">Actions</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% const statusColors = { open: 'amber', in_progress: 'blue', completed: 'emerald' }; %>
+        <% for (const r of records) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><div class="text-white font-medium"><%= r.title %></div><div class="text-xs text-slate-500 capitalize"><%= r.maintenance_type %></div></td>
+          <td class="px-6 py-4"><div class="text-slate-300"><%= r.asset_name %></div><div class="text-xs font-mono text-slate-500"><%= r.asset_tag %></div></td>
+          <td class="px-6 py-4 text-slate-400"><%= r.vendor_name || '—' %></td>
+          <% const c = statusColors[r.status] || 'slate'; %>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-<%= c %>-500/10 text-<%= c %>-400 text-xs capitalize"><%= r.status.replace('_', ' ') %></span></td>
+          <td class="px-6 py-4 text-slate-400"><%= formatDate(r.next_due_date) || '—' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= r.downtime_hours ? r.downtime_hours + 'h' : '—' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= r.cost ? Number(r.cost).toFixed(2) : '—' %></td>
+          <td class="px-6 py-4 text-right">
+            <button @click='editRecord = <%- JSON.stringify(r).replace(/'/g, "&#39;") %>; editOpen = true' class="p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!records.length) { %><tr><td colspan="8" class="px-6 py-12 text-center text-slate-500">No maintenance records.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<% const maintFields = (mode) => { %>
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <% if (mode === 'add') { %>
+    <div class="sm:col-span-2">
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Asset *</label>
+      <select name="asset_id" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">— Select asset —</option>
+        <% for (const a of references.assets) { %><option value="<%= a.id %>"><%= a.name %> (<%= a.asset_tag %>)</option><% } %>
+      </select>
+    </div>
+    <% } %>
+    <div class="sm:col-span-2">
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Title *</label>
+      <input type="text" name="title" required <%- mode === 'edit' ? 'x-model="editRecord.title"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+    </div>
+    <% if (mode === 'add') { %>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Type</label>
+      <select name="maintenance_type" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <% for (const t of ['repair', 'warranty', 'inspection', 'upgrade']) { %><option value="<%= t %>"><%= t %></option><% } %>
+      </select>
+    </div>
+    <% } %>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Status</label>
+      <select name="status" <%- mode === 'edit' ? 'x-model="editRecord.status"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <% for (const s of ['open', 'in_progress', 'completed']) { %><option value="<%= s %>"><%= s %></option><% } %>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Vendor</label>
+      <select name="vendor_id" <%- mode === 'edit' ? 'x-model="editRecord.vendor_id"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">— None —</option>
+        <% for (const s of references.suppliers) { %><option value="<%= s.id %>"><%= s.name %></option><% } %>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Start Date</label>
+      <input type="date" name="start_date" <%- mode === 'edit' ? `:value="(editRecord.start_date || '').slice(0, 10)"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Completion Date</label>
+      <input type="date" name="completion_date" <%- mode === 'edit' ? `:value="(editRecord.completion_date || '').slice(0, 10)"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Cost</label>
+      <input type="number" step="0.01" name="cost" <%- mode === 'edit' ? 'x-model="editRecord.cost"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Recurrence</label>
+      <select name="recurrence" <%- mode === 'edit' ? 'x-model="editRecord.recurrence"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">None</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Next Due Date</label>
+      <input type="date" name="next_due_date" <%- mode === 'edit' ? `:value="(editRecord.next_due_date || '').slice(0, 10)"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Downtime (hours)</label>
+      <input type="number" step="0.5" name="downtime_hours" <%- mode === 'edit' ? 'x-model="editRecord.downtime_hours"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+    </div>
+    <div class="sm:col-span-2">
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Notes</label>
+      <textarea name="notes" rows="2" <%- mode === 'edit' ? 'x-model="editRecord.notes"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea>
+    </div>
+  </div>
+<% }; %>
+
+<div x-show="addOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-lg">
+    <h3 class="font-heading font-semibold text-white mb-4">Add Maintenance Record</h3>
+    <form method="POST" action="<%= hams_url('/maintenance') %>" class="space-y-4">
+      <%- csrf_field %>
+      <% maintFields('add') %>
+      <div class="flex justify-end gap-2">
+        <button type="button" @click="addOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div x-show="editOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="editOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-lg">
+    <h3 class="font-heading font-semibold text-white mb-4">Update Maintenance Record</h3>
+    <form method="POST" :action="'<%= hams_url('/maintenance') %>/' + editRecord.id + '/update'" class="space-y-4">
+      <%- csrf_field %>
+      <% maintFields('edit') %>
+      <div class="flex justify-end gap-2">
+        <button type="button" @click="editOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>

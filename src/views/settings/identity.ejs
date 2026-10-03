@@ -1,0 +1,77 @@
+﻿<% const sv = (k, d = '') => (settings[k] ? (settings[k].value ?? d) : d); %>
+<div class="flex flex-col lg:flex-row gap-8" x-data="{ tab: 'ldap' }">
+  <%- await include('_sidebar', { active_tab }) %>
+  <div class="flex-1 max-w-3xl">
+    <h1 class="font-heading text-2xl font-bold text-white mb-1">Identity &amp; Access</h1>
+    <p class="text-sm text-slate-500 mb-6">LDAP/AD, SAML, and OIDC single sign-on providers</p>
+
+    <div class="flex gap-2 mb-6">
+      <% for (const [key, label] of [['ldap', 'LDAP / AD'], ['saml', 'SAML'], ['oidc', 'OIDC']]) { %>
+      <button @click="tab = '<%= key %>'" :class="tab === '<%= key %>' ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400'"
+              class="px-4 py-2 rounded-xl text-sm font-medium"><%= label %></button>
+      <% } %>
+    </div>
+
+    <!-- LDAP -->
+    <form method="POST" action="<%= hams_url('/settings/update') %>" x-show="tab === 'ldap'" class="bg-hams-card border border-white/5 rounded-3xl p-6 space-y-4">
+      <%- csrf_field %>
+      <input type="hidden" name="group" value="identity">
+      <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="ldap_enabled" value="1" <%= sv('ldap_enabled') === '1' ? 'checked' : '' %> class="rounded"><span class="font-medium text-white">Enable LDAP Integration</span></label>
+      <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="ldap_login_enabled" value="1" <%= sv('ldap_login_enabled') === '1' ? 'checked' : '' %> class="rounded"><span class="text-slate-300">Allow LDAP password login</span></label>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <% const ldapFields = [
+          ['ldap_host', 'Host', ''], ['ldap_port', 'Port', '389'], ['ldap_base_dn', 'Base DN', ''],
+          ['ldap_bind_dn', 'Bind DN', ''], ['ldap_bind_password', 'Bind Password', ''],
+          ['ldap_email_attribute', 'Email Attribute', 'mail'], ['ldap_name_attribute', 'Name Attribute', 'cn'],
+          ['ldap_default_role', 'Default Role', 'employee']
+        ]; %>
+        <% for (const [name, label, def] of ldapFields) { %>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5"><%= label %></label>
+          <input type="<%= name.includes('password') ? 'password' : 'text' %>" name="<%= name %>" value="<%= sv(name, def) %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <% } %>
+        <div class="sm:col-span-2"><label class="block text-xs font-medium text-slate-400 mb-1.5">User Filter</label>
+          <input type="text" name="ldap_user_filter" value="<%= sv('ldap_user_filter') %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"></div>
+      </div>
+      <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="ldap_tls" value="1" <%= sv('ldap_tls') === '1' ? 'checked' : '' %> class="rounded"><span class="text-slate-300">Use TLS</span></label>
+      <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="ldap_auto_provision" value="1" <%= sv('ldap_auto_provision') === '1' ? 'checked' : '' %> class="rounded"><span class="text-slate-300">Auto-provision users on first login</span></label>
+      <div class="flex gap-2">
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Save LDAP Settings</button>
+      </div>
+    </form>
+    <form method="POST" action="<%= hams_url('/settings/identity/test-ldap') %>" x-show="tab === 'ldap'" class="mt-3">
+      <%- csrf_field %>
+      <button class="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">Test LDAP Connection</button>
+    </form>
+
+    <!-- SAML -->
+    <form method="POST" action="<%= hams_url('/settings/update') %>" x-show="tab === 'saml'" x-cloak class="bg-hams-card border border-white/5 rounded-3xl p-6 space-y-4">
+      <%- csrf_field %>
+      <input type="hidden" name="group" value="identity">
+      <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="saml_enabled" value="1" <%= sv('saml_enabled') === '1' ? 'checked' : '' %> class="rounded"><span class="font-medium text-white">Enable SAML SSO</span></label>
+      <% for (const [name, label] of [['saml_sso_url', 'SSO URL'], ['saml_entity_id', 'Entity ID'], ['saml_acs_url', 'ACS URL']]) { %>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5"><%= label %></label>
+        <input type="text" name="<%= name %>" value="<%= sv(name) %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <% } %>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">IdP Certificate</label>
+        <textarea name="saml_certificate" rows="4" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"><%= sv('saml_certificate') %></textarea></div>
+      <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="saml_auto_provision" value="1" <%= sv('saml_auto_provision') === '1' ? 'checked' : '' %> class="rounded"><span class="text-slate-300">Auto-provision users</span></label>
+      <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Save SAML Settings</button>
+    </form>
+
+    <!-- OIDC -->
+    <form method="POST" action="<%= hams_url('/settings/update') %>" x-show="tab === 'oidc'" x-cloak class="bg-hams-card border border-white/5 rounded-3xl p-6 space-y-4">
+      <%- csrf_field %>
+      <input type="hidden" name="group" value="identity">
+      <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="oidc_enabled" value="1" <%= sv('oidc_enabled') === '1' ? 'checked' : '' %> class="rounded"><span class="font-medium text-white">Enable OIDC SSO</span></label>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <% const oidcFields = [['oidc_client_id', 'Client ID'], ['oidc_client_secret', 'Client Secret'], ['oidc_authorization_url', 'Authorization URL'], ['oidc_token_url', 'Token URL'], ['oidc_userinfo_url', 'Userinfo URL'], ['oidc_redirect_uri', 'Redirect URI'], ['oidc_scopes', 'Scopes']]; %>
+        <% for (const [name, label] of oidcFields) { %>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5"><%= label %></label>
+          <input type="<%= name.includes('secret') ? 'password' : 'text' %>" name="<%= name %>" value="<%= sv(name) %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <% } %>
+      </div>
+      <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="oidc_auto_provision" value="1" <%= sv('oidc_auto_provision') === '1' ? 'checked' : '' %> class="rounded"><span class="text-slate-300">Auto-provision users</span></label>
+      <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Save OIDC Settings</button>
+    </form>
+  </div>
+</div>

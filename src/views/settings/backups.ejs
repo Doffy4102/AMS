@@ -1,0 +1,130 @@
+<% const bs = (k, d = '') => (backup_settings[k] ? (backup_settings[k].value ?? d) : d); %>
+<div class="flex flex-col lg:flex-row gap-8">
+  <%- await include('_sidebar', { active_tab }) %>
+  <div class="flex-1 space-y-6">
+    <div>
+      <h1 class="font-heading text-2xl font-bold text-white mb-1">Backup &amp; Restore</h1>
+      <p class="text-sm text-slate-500">Database backups via pg_dump, schedules, and restore</p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="bg-hams-card border border-white/5 rounded-2xl p-5">
+        <div class="text-xs text-slate-500 mb-1">Successful Backups</div>
+        <div class="text-xl font-bold text-white font-heading"><%= stats.total %></div>
+      </div>
+      <div class="bg-hams-card border border-white/5 rounded-2xl p-5">
+        <div class="text-xs text-slate-500 mb-1">Total Size</div>
+        <div class="text-xl font-bold text-white font-heading"><%= (Number(stats.bytes) / 1048576).toFixed(1) %> MB</div>
+      </div>
+      <div class="bg-hams-card border border-white/5 rounded-2xl p-5">
+        <div class="text-xs text-slate-500 mb-1">Last Backup</div>
+        <div class="text-sm font-semibold text-white"><%= stats.last_backup ? formatDateTime(stats.last_backup) : 'Never' %></div>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-3">
+      <form method="POST" action="<%= hams_url('/settings/backups') %>">
+        <%- csrf_field %>
+        <input type="hidden" name="backup_type" value="database">
+        <input type="hidden" name="destination_type" value="local">
+        <button class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="database-backup" class="w-4 h-4"></i>Create Database Backup</button>
+      </form>
+      <form method="POST" action="<%= hams_url('/settings/backups/run-due') %>">
+        <%- csrf_field %>
+        <button class="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">Run Due Schedules</button>
+      </form>
+    </div>
+
+    <div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+      <h2 class="font-heading font-semibold text-white px-6 pt-6 pb-4">Backup Jobs</h2>
+      <div class="table-responsive">
+        <table class="w-full min-w-[800px] text-sm">
+          <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+            <th class="px-6 py-3">Backup</th><th class="px-6 py-3">Type</th><th class="px-6 py-3">Size</th><th class="px-6 py-3">Status</th><th class="px-6 py-3">Date</th><th class="px-6 py-3 text-right">Actions</th>
+          </tr></thead>
+          <tbody class="divide-y divide-white/5">
+            <% for (const j of jobs) { %>
+            <tr>
+              <td class="px-6 py-3 text-white font-mono text-xs"><%= j.file_name || '—' %></td>
+              <td class="px-6 py-3 text-slate-400"><%= j.backup_type %></td>
+              <td class="px-6 py-3 text-slate-400"><%= j.file_size ? (Number(j.file_size) / 1024).toFixed(0) + ' KB' : '—' %></td>
+              <td class="px-6 py-3"><span class="px-2 py-0.5 rounded text-xs <%= j.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : (j.status === 'failed' ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400') %>"><%= j.status %></span></td>
+              <td class="px-6 py-3 text-slate-500"><%= formatDateTime(j.created_at) %></td>
+              <td class="px-6 py-3">
+                <div class="flex justify-end gap-1">
+                  <% if (j.status === 'success') { %>
+                  <a href="<%= hams_url('/settings/backups/' + j.id + '/download') %>" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Download"><i data-lucide="download" class="w-4 h-4"></i></a>
+                  <form method="POST" action="<%= hams_url('/settings/backups/' + j.id + '/restore') %>" data-confirm="Restore the database from this backup? Current data will be overwritten.">
+                    <%- csrf_field %><button class="p-2 rounded-lg hover:bg-amber-500/10 text-amber-400" title="Restore"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+                  </form>
+                  <% } %>
+                  <form method="POST" action="<%= hams_url('/settings/backups/' + j.id + '/delete') %>" data-confirm="Delete this backup?">
+                    <%- csrf_field %><button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            <% } %>
+            <% if (!jobs.length) { %><tr><td colspan="6" class="px-6 py-10 text-center text-slate-500">No backups yet.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+        <h2 class="font-heading font-semibold text-white mb-4">New Schedule</h2>
+        <form method="POST" action="<%= hams_url('/settings/backups/schedules') %>" class="space-y-3">
+          <%- csrf_field %>
+          <div><label class="block text-xs text-slate-400 mb-1">Name</label>
+            <input type="text" name="name" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-xs text-slate-400 mb-1">Type</label>
+              <select name="backup_type" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"><option value="database">Database</option></select></div>
+            <div><label class="block text-xs text-slate-400 mb-1">Frequency</label>
+              <select name="frequency" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+                <option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option>
+              </select></div>
+            <div><label class="block text-xs text-slate-400 mb-1">Run Time</label>
+              <input type="time" name="run_time" value="02:00" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+            <div><label class="block text-xs text-slate-400 mb-1">Retention (days)</label>
+              <input type="number" name="retention_days" value="30" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+          </div>
+          <input type="hidden" name="destination_type" value="local">
+          <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="is_active" value="1" checked class="rounded">Active</label>
+          <button class="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium">Save Schedule</button>
+        </form>
+        <div class="mt-5 space-y-2">
+          <% for (const s of schedules) { %>
+          <div class="flex items-center justify-between p-3 rounded-xl bg-white/[.02] text-sm">
+            <div><span class="text-white"><%= s.name %></span> <span class="text-xs text-slate-500"><%= s.frequency %> @ <%= s.run_time %></span></div>
+            <form method="POST" action="<%= hams_url('/settings/backups/schedules/' + s.id + '/toggle') %>">
+              <%- csrf_field %>
+              <button class="px-2.5 py-1 rounded-lg text-xs <%= s.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-500' %>"><%= s.is_active ? 'Active' : 'Paused' %></button>
+            </form>
+          </div>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+        <h2 class="font-heading font-semibold text-white mb-4">Restore From Upload</h2>
+        <form method="POST" action="<%= hams_url('/settings/backups/restore-upload') %>" enctype="multipart/form-data" class="space-y-3" data-confirm="Restore the database from this file? Current data will be overwritten.">
+          <%- csrf_field %>
+          <input type="hidden" name="restore_type" value="database">
+          <input type="file" name="restore_file" accept=".sql" required class="w-full text-xs text-slate-400">
+          <button class="px-5 py-2.5 rounded-xl bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 text-sm font-medium">Restore Database</button>
+        </form>
+        <div class="mt-6 pt-4 border-t border-white/5">
+          <h3 class="text-sm font-semibold text-white mb-2">Automatic Backups</h3>
+          <form method="POST" action="<%= hams_url('/settings/update') %>" class="flex items-center gap-3">
+            <%- csrf_field %>
+            <input type="hidden" name="group" value="backup">
+            <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="auto_backup_enabled" value="1" <%= bs('auto_backup_enabled') === '1' ? 'checked' : '' %> class="rounded">Enable scheduled backups</label>
+            <button class="px-3 py-1.5 rounded-lg bg-white/5 text-xs text-slate-300">Save</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

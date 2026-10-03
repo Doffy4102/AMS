@@ -1,0 +1,482 @@
+<%
+// Mode of procurement derived from vendor text (spec: classify by vendor).
+const procurementMode = (vendors) => {
+  if (!vendors) return 'Unknown';
+  const parts = String(vendors).split(',').map(s => s.trim()).filter(Boolean);
+  if (!parts.length) return 'Unknown';
+  const modes = parts.map(v =>
+    v === 'Online' ? 'Online Purchase'
+    : v === 'Client Provided' ? 'Client Provided'
+    : v === 'Unknown' ? 'Unknown'
+    : 'Vendor: ' + v);
+  return [...new Set(modes)].join(' · ');
+};
+const fmtMoney = (n) => n == null ? '—' : Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const qs = (over) => {
+  const p = new URLSearchParams({ start, end });
+  if (filters.sw) p.set('sw', filters.sw);
+  if (filters.cycle) p.set('cycle', filters.cycle);
+  if (filters.bucket) p.set('bucket', filters.bucket);
+  for (const [k, v] of Object.entries(over || {})) { if (v === null) p.delete(k); else p.set(k, v); }
+  return '?' + p.toString();
+};
+%>
+<div class="space-y-6" x-data="{ importOpen: false, previewOpen: <%= importPreview ? 'true' : 'false' %> }">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-heading font-semibold text-white mb-1">Software</h1>
+      <p class="text-slate-400">Renewals, subscription coverage and spend across the software estate</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <% if (dataMin && dataMax) { %>
+      <p class="text-xs text-slate-500">Renewal data available: <span class="text-slate-300 font-mono"><%= dataMin %></span> → <span class="text-slate-300 font-mono"><%= dataMax %></span></p>
+      <% } %>
+      <button @click="importOpen = true" type="button" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="upload" class="w-4 h-4"></i>Import CSV/Excel</button>
+    </div>
+  </div>
+
+  <!-- Date range filter (drives every section below) -->
+  <form id="sw-range-form" method="GET" action="<%= hamsUrl('/software') %>"
+        class="bg-white/5 border border-white/5 rounded-2xl p-5 flex flex-wrap items-end gap-4">
+    <div>
+      <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">Start Date</label>
+      <input type="date" name="start" value="<%= start %>" required
+             class="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-200">
+    </div>
+    <div>
+      <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">End Date</label>
+      <input type="date" name="end" value="<%= end %>" required
+             class="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-200">
+    </div>
+    <% if (filters.sw) { %><input type="hidden" name="sw" value="<%= filters.sw %>"><% } %>
+    <% if (filters.cycle) { %><input type="hidden" name="cycle" value="<%= filters.cycle %>"><% } %>
+    <% if (filters.bucket) { %><input type="hidden" name="bucket" value="<%= filters.bucket %>"><% } %>
+    <button type="submit" id="sw-apply-btn"
+            class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium flex items-center gap-2">
+      <i data-lucide="filter" class="w-4 h-4"></i><span>Apply Range</span>
+    </button>
+    <span id="sw-loading" class="hidden items-center gap-2 text-sm text-slate-400">
+      <svg class="animate-spin w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
+      Updating…
+    </span>
+
+    <!-- Active cross-filters (set by clicking chart elements) -->
+    <% if (filters.sw || filters.cycle || filters.bucket) { %>
+    <div class="flex flex-wrap items-center gap-2 ml-auto">
+      <span class="text-xs text-slate-500 uppercase tracking-wider">Active filters:</span>
+      <% if (filters.sw) { %>
+      <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-medium">
+        <i data-lucide="app-window" class="w-3 h-3"></i><%= filters.sw %>
+        <a href="<%= hamsUrl('/software') + qs({ sw: null }) %>" class="hover:text-white" title="Remove software filter">✕</a>
+      </span>
+      <% } %>
+      <% if (filters.cycle) { %>
+      <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-medium">
+        <i data-lucide="repeat" class="w-3 h-3"></i><%= filters.cycle %>
+        <a href="<%= hamsUrl('/software') + qs({ cycle: null }) %>" class="hover:text-white" title="Remove cycle filter">✕</a>
+      </span>
+      <% } %>
+      <% if (filters.bucket) { %>
+      <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium">
+        <i data-lucide="calendar-check" class="w-3 h-3"></i>Renewals in <%= filters.bucket %>
+        <a href="<%= hamsUrl('/software') + qs({ bucket: null }) %>" class="hover:text-white" title="Remove period filter">✕</a>
+      </span>
+      <% } %>
+      <a href="<%= hamsUrl('/software') %>" class="text-xs text-slate-400 hover:text-white underline">Reset all</a>
+    </div>
+    <% } else { %>
+    <p class="ml-auto text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5"></i>Tip: click any bar or pie slice to filter every section</p>
+    <% } %>
+  </form>
+
+  <!-- Charts -->
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <!-- 1. Renewal graph -->
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+      <h2 class="text-lg font-semibold text-white mb-1">Upcoming Renewals</h2>
+      <p class="text-xs text-slate-500 mb-4">Licenses due for renewal, <%= renewals.byMonth ? 'grouped by month' : 'by date' %>, each software shown in its own color · click a bar to highlight it and filter the sections below (click elsewhere to clear)</p>
+      <% if (renewals.buckets.length === 0) { %>
+      <div class="py-12 text-center text-sm text-slate-400">
+        <i data-lucide="calendar-x" class="w-8 h-8 mx-auto mb-3 opacity-40"></i>
+        No renewal data available for selected date range
+      </div>
+      <% } else { %>
+      <div id="renewalChart" class="w-full" style="height: 260px;"></div>
+      <% } %>
+    </div>
+
+    <!-- 2. Subscription graph (stacked bars per renewal cycle) -->
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+      <h2 class="text-lg font-semibold text-white mb-1">Subscription Coverage</h2>
+      <p class="text-xs text-slate-500 mb-4">Quantity renewing <%= subscriptions.byMonth ? 'per month' : 'per renewal date' %>, stacked by renewal cycle · click a bar segment to filter by that cycle</p>
+      <% const subsHasData = subscriptions.series.some(s => s.data.some(v => v > 0)); %>
+      <% if (!subsHasData) { %>
+      <div class="py-12 text-center text-sm text-slate-400">
+        <i data-lucide="calendar-off" class="w-8 h-8 mx-auto mb-3 opacity-40"></i>
+        No subscription data available for selected date range
+      </div>
+      <% } else { %>
+      <div id="subscriptionChart" class="w-full" style="height: 260px;"></div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- 3. Renewal distribution pie -->
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+      <h2 class="text-lg font-semibold text-white mb-1">Renewal Concentration</h2>
+      <p class="text-xs text-slate-500 mb-4">Share of renewal quantity by software · click a slice to filter by that software</p>
+      <% if (distribution.length === 0) { %>
+      <div class="py-12 text-center text-sm text-slate-400">
+        <i data-lucide="pie-chart" class="w-8 h-8 mx-auto mb-3 opacity-40"></i>
+        No renewal data available for selected date range
+      </div>
+      <% } else { %>
+      <div id="distributionChart" class="w-full" style="height: 280px;"></div>
+      <% } %>
+    </div>
+
+    <!-- 4. Software details table -->
+    <div class="xl:col-span-2 bg-white/5 border border-white/5 rounded-2xl p-6">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 class="text-lg font-semibold text-white">Software Details</h2>
+          <p class="text-xs text-slate-500">Aggregated per product for the selected range · rate 1 USD = <span id="sw-rate"><%= usdInrRate %></span> INR</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <select id="sw-name-filter"
+                  class="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-sm text-slate-200">
+            <option value="">All software</option>
+            <% softwareNames.forEach(n => { %>
+            <option value="<%= n %>" <%= filters.sw === n ? 'selected' : '' %>><%= n %></option>
+            <% }); %>
+          </select>
+          <div class="flex rounded-xl overflow-hidden border border-white/10 text-sm" id="sw-currency-toggle">
+            <button type="button" data-currency="INR" class="px-4 py-1.5 bg-blue-600 text-white font-medium">₹ INR</button>
+            <button type="button" data-currency="USD" class="px-4 py-1.5 bg-white/5 text-slate-300">$ USD</button>
+          </div>
+        </div>
+      </div>
+      <% if (details.length === 0) { %>
+      <div class="py-12 text-center text-sm text-slate-400">
+        <i data-lucide="package-x" class="w-8 h-8 mx-auto mb-3 opacity-40"></i>
+        No software details available
+      </div>
+      <% } else { %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="border-b border-white/10">
+            <tr class="text-slate-400 text-xs uppercase tracking-wider">
+              <th class="text-left py-3 px-3 font-medium">Software Name</th>
+              <th class="text-right py-3 px-3 font-medium">Qty</th>
+              <th class="text-right py-3 px-3 font-medium">Pricing (<span class="sw-currency-label">INR</span>)</th>
+              <th class="text-left py-3 px-3 font-medium">Subscription Type</th>
+              <th class="text-left py-3 px-3 font-medium">Mode of Procurement</th>
+              <th class="text-left py-3 px-3 font-medium">Next Renewal</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            <% details.forEach(d => { %>
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-3 px-3 text-white font-medium"><%= d.sw_name %>
+                <span class="text-slate-500 text-xs">(<%= d.records %> record<%= d.records > 1 ? 's' : '' %>)</span>
+              </td>
+              <td class="py-3 px-3 text-right text-slate-300"><%= d.total_qty %></td>
+              <td class="py-3 px-3 text-right text-slate-200 font-mono sw-amount" data-inr="<%= d.total_amount || '' %>">
+                <%= d.total_amount != null ? '₹' + fmtMoney(d.total_amount) : '—' %>
+              </td>
+              <td class="py-3 px-3">
+                <% (d.license_types || '').split(',').map(s => s.trim()).filter(Boolean).forEach(t => { %>
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold <%= t === 'Subscription' ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-500/20 text-slate-300' %>"><%= t %></span>
+                <% }); %>
+              </td>
+              <td class="py-3 px-3 text-slate-300 text-xs"><%= procurementMode(d.vendors) %></td>
+              <td class="py-3 px-3 text-slate-300 font-mono text-xs"><%= d.next_renewal || '—' %></td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Import CSV/Excel modal -->
+  <div x-show="importOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="importOpen = false"></div>
+    <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-lg">
+      <h3 class="font-heading font-semibold text-white mb-1">Import Software Assets</h3>
+      <p class="text-xs text-slate-500 mb-4">Upload a CSV or Excel (.xlsx) file. Qty must be between <%= qtyMin %> and <%= qtyMax %>; rows outside that range or missing a Software Name will be flagged for review before anything is imported.</p>
+      <form method="POST" action="<%= hamsUrl('/software/import/preview') %>" enctype="multipart/form-data" class="space-y-4">
+        <%- csrf_field %>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">File *</label>
+          <input type="file" name="file" accept=".csv,.xlsx,.xls" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm text-slate-300 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-white/10 file:text-slate-200 file:text-xs">
+        </div>
+        <div class="flex items-center justify-between">
+          <a href="<%= hamsUrl('/software/import/template') %>" class="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1.5"><i data-lucide="download" class="w-3.5 h-3.5"></i>Download CSV template</a>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" @click="importOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i>Preview Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Import preview / confirm modal -->
+  <% if (importPreview) { %>
+  <div x-show="previewOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+    <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-2xl">
+      <h3 class="font-heading font-semibold text-white mb-1">Review Import — <%= importPreview.fileName %></h3>
+      <p class="text-xs text-slate-500 mb-4"><%= importPreview.total %> rows read · mapped columns: <%= importPreview.mappedColumns.join(', ') %></p>
+      <div class="flex gap-3 mb-4">
+        <div class="flex-1 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
+          <div class="text-2xl font-semibold text-emerald-400"><%= importPreview.valid_count %></div>
+          <div class="text-xs text-slate-400">Ready to import</div>
+        </div>
+        <div class="flex-1 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
+          <div class="text-2xl font-semibold text-rose-400"><%= importPreview.error_count %></div>
+          <div class="text-xs text-slate-400">Rows with errors (skipped)</div>
+        </div>
+      </div>
+      <% if (importPreview.errors.length) { %>
+      <div class="max-h-56 overflow-y-auto rounded-xl border border-white/10 mb-4">
+        <table class="w-full text-xs">
+          <thead><tr class="text-left text-slate-500 uppercase border-b border-white/5 bg-white/5"><th class="px-3 py-2">Line</th><th class="px-3 py-2">Errors</th></tr></thead>
+          <tbody class="divide-y divide-white/5">
+            <% for (const e of importPreview.errors) { %>
+            <tr><td class="px-3 py-2 text-slate-400 align-top"><%= e.line %></td><td class="px-3 py-2 text-rose-300"><%= e.errors.join('; ') %></td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+      <div class="flex justify-end gap-2">
+        <form method="POST" action="<%= hamsUrl('/software/import/cancel') %>"><%- csrf_field %><button type="submit" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button></form>
+        <form method="POST" action="<%= hamsUrl('/software/import/execute') %>">
+          <%- csrf_field %>
+          <button type="submit" <%= importPreview.valid_count ? '' : 'disabled' %> class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"><i data-lucide="check" class="w-4 h-4"></i>Import <%= importPreview.valid_count %> Row<%= importPreview.valid_count === 1 ? '' : 's' %></button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<script>
+(function() {
+  // ---- shared config ----
+  var USD_INR_RATE = <%- JSON.stringify(usdInrRate) %>;
+  var BASE_URL = <%- JSON.stringify(hamsUrl('/software')) %>;
+  var baseChart = {
+    chart: { toolbar: { show: false }, foreColor: '#94a3b8', background: 'transparent' },
+    grid: { borderColor: 'rgba(255,255,255,0.06)' },
+    dataLabels: { enabled: false },
+    theme: { mode: 'dark' }
+  };
+  var esc = function(s) { return String(s).replace(/[&<>"]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+
+  // Cross-filter navigation: keep current params, apply overrides (null deletes),
+  // show the loading indicator, reload with the new query.
+  function goWith(overrides) {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.get('start')) p.set('start', document.querySelector('[name=start]').value);
+    if (!p.get('end')) p.set('end', document.querySelector('[name=end]').value);
+    Object.keys(overrides).forEach(function(k) {
+      if (overrides[k] === null) p.delete(k); else p.set(k, overrides[k]);
+    });
+    showLoading();
+    window.location.href = BASE_URL + '?' + p.toString();
+  }
+  function showLoading() {
+    var el = document.getElementById('sw-loading');
+    el.classList.remove('hidden'); el.classList.add('inline-flex');
+    document.getElementById('sw-apply-btn').setAttribute('disabled', 'disabled');
+  }
+  document.getElementById('sw-range-form').addEventListener('submit', showLoading);
+
+  // ---- 1. Renewal chart (STACKED bar, one series per software so each gets
+  // its own color within a single bar; click a bar -> highlight it + filter
+  // other sections, WITHOUT changing this chart's own bars; click empty space
+  // to clear the selection) ----
+  var renewalBuckets = <%- JSON.stringify(renewals.buckets) %>;
+  var renewalSwSeries = <%- JSON.stringify(renewals.series) %>;
+  var selectedBucket = <%- JSON.stringify(filters.bucket || null) %>;
+  var selectedBucketIndex = selectedBucket
+    ? renewalBuckets.findIndex(function(b) { return b.bucket === selectedBucket; })
+    : -1;
+
+  // Stable per-software color: looked up by name against the FULL software
+  // list (not the filtered subset in this view), so a given software always
+  // gets the same color regardless of date range or which names are present.
+  var SW_PALETTE_NAMES = <%- JSON.stringify(softwareNames) %>;
+  var SW_PALETTE = ['#3b82f6', '#f59e0b', '#10b981', '#a78bfa', '#f43f5e', '#22d3ee', '#eab308', '#94a3b8'];
+  function colorForSoftware(name) {
+    var i = SW_PALETTE_NAMES.indexOf(name);
+    if (i < 0) i = SW_PALETTE_NAMES.length; // unknown name: extend past the base palette
+    if (i < SW_PALETTE.length) return SW_PALETTE[i];
+    // Beyond the base palette, generate additional distinct hues (golden-angle spin).
+    return 'hsl(' + ((i * 137.508) % 360).toFixed(0) + ', 65%, 55%)';
+  }
+
+  // Custom whole-column highlight: ApexCharts' own toggleDataPointSelection
+  // only supports ONE selected point per series-set at a time (calling it for
+  // multiple series clears the earlier ones instead of adding to them), so it
+  // can't highlight every software's segment in a stacked column. Instead,
+  // darken every bar-area at the given x-index across ALL series directly.
+  function highlightColumn(dataPointIndex) {
+    document.querySelectorAll('#renewalChart .apexcharts-series').forEach(function(g) {
+      var bars = g.querySelectorAll('.apexcharts-bar-area');
+      bars.forEach(function(bar, i) { bar.style.filter = (i === dataPointIndex) ? 'brightness(0.55)' : ''; });
+    });
+  }
+
+  if (renewalBuckets.length && document.getElementById('renewalChart')) {
+    new ApexCharts(document.getElementById('renewalChart'), Object.assign({}, baseChart, {
+      chart: Object.assign({}, baseChart.chart, {
+        type: 'bar', height: 260, stacked: true,
+        events: {
+          mounted: function() {
+            if (selectedBucketIndex >= 0) highlightColumn(selectedBucketIndex);
+          },
+          // dataPointSelection gives the x-axis index directly regardless of
+          // which stacked segment (software) was clicked — reliable even with
+          // multiple series, unlike hunting for the element in the DOM.
+          dataPointSelection: function(e, ctx, cfg) {
+            var b = renewalBuckets[cfg.dataPointIndex];
+            if (b && b.bucket !== selectedBucket) goWith({ bucket: b.bucket }); // highlight + filter other sections; this chart's bars stay as-is
+          }
+        }
+      }),
+      series: renewalSwSeries,
+      colors: renewalSwSeries.map(function(s) { return colorForSoftware(s.name); }),
+      xaxis: { categories: renewalBuckets.map(function(b) { return b.bucket; }), labels: { rotate: -45, style: { fontSize: '10px' } } },
+      yaxis: { title: { text: 'Quantity due for renewal' } },
+      legend: { position: 'top', fontSize: '11px' },
+      plotOptions: { bar: { borderRadius: 3, columnWidth: '60%' } },
+      tooltip: {
+        shared: true, intersect: false,
+        custom: function(opts) {
+          var b = renewalBuckets[opts.dataPointIndex];
+          var html = '<div style="padding:10px 12px;background:#141417;border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px">';
+          html += '<div style="font-weight:600;color:#fff;margin-bottom:6px">' + esc(b.bucket) + ' &middot; ' + b.total + ' license(s) due</div>';
+          renewalSwSeries.forEach(function(s) {
+            var qty = s.data[opts.dataPointIndex];
+            if (!qty) return;
+            html += '<div style="color:#cbd5e1"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + colorForSoftware(s.name) + ';margin-right:6px"></span>' + esc(s.name) + ' &mdash; <b>' + qty + '</b></div>';
+          });
+          html += '<div style="color:#64748b;margin-top:6px">Click to highlight &amp; filter the sections below</div>';
+          return html + '</div>';
+        }
+      }
+    })).render();
+
+    // Raw DOM listener only to detect "clicked empty chart area" (no bar
+    // ancestor) — the latter clears the selection. Bar clicks themselves are
+    // handled by the reliable dataPointSelection event above.
+    document.getElementById('renewalChart').addEventListener('click', function(e) {
+      if (!e.target.closest('.apexcharts-bar-area') && selectedBucket) {
+        goWith({ bucket: null }); // clicked empty chart area -> clear selection
+      }
+    });
+  }
+
+  // ---- 2. Subscription chart (STACKED BAR per renewal cycle; click segment -> cycle + month filter) ----
+  var subLabels = <%- JSON.stringify(subscriptions.labels) %>;
+  var subSeries = <%- JSON.stringify(subscriptions.series) %>;
+  if (document.getElementById('subscriptionChart')) {
+    new ApexCharts(document.getElementById('subscriptionChart'), Object.assign({}, baseChart, {
+      chart: Object.assign({}, baseChart.chart, {
+        type: 'bar', height: 260, stacked: true,
+        events: {
+          dataPointSelection: function(e, ctx, cfg) {
+            var s = subSeries[cfg.seriesIndex];
+            if (s) goWith({ cycle: s.name }); // cycle filter only — start/end stay as selected
+          }
+        }
+      }),
+      series: subSeries.map(function(s) { return { name: s.name, data: s.data }; }),
+      xaxis: { categories: subLabels, labels: { rotate: -45, style: { fontSize: '10px' } } },
+      yaxis: { title: { text: 'Quantity renewing' } },
+      colors: ['#3b82f6', '#f59e0b', '#a78bfa', '#64748b'],
+      plotOptions: { bar: { borderRadius: 2, columnWidth: '65%' } },
+      legend: { position: 'top' },
+      states: { active: { filter: { type: 'darken', value: 0.6 } } },
+      tooltip: {
+        shared: false, intersect: true,
+        custom: function(opts) {
+          var s = subSeries[opts.seriesIndex];
+          if (!s) return '';
+          var names = (s.names[opts.dataPointIndex] || '').split('|').filter(Boolean);
+          var html = '<div style="padding:10px 12px;background:#141417;border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px">';
+          html += '<div style="font-weight:600;color:#fff;margin-bottom:4px">' + esc(subLabels[opts.dataPointIndex]) + ' &middot; ' + esc(s.name) + (s.perpetual ? ' (no expiry)' : '') + '</div>';
+          html += '<div style="color:#cbd5e1;margin-bottom:4px">Quantity: <b>' + s.data[opts.dataPointIndex] + '</b></div>';
+          names.slice(0, 8).forEach(function(n) { html += '<div style="color:#94a3b8">&bull; ' + esc(n) + '</div>'; });
+          if (names.length > 8) html += '<div style="color:#64748b">+' + (names.length - 8) + ' more</div>';
+          html += '<div style="color:#64748b;margin-top:6px">Click to filter by this cycle</div>';
+          return html + '</div>';
+        }
+      }
+    })).render();
+  }
+
+  // ---- 3. Renewal distribution pie (click slice -> software filter) ----
+  var dist = <%- JSON.stringify(distribution.map(d => ({ name: d.sw_name, qty: Number(d.qty) }))) %>;
+  if (dist.length && document.getElementById('distributionChart')) {
+    var distTotal = dist.reduce(function(a, d) { return a + d.qty; }, 0);
+    new ApexCharts(document.getElementById('distributionChart'), Object.assign({}, baseChart, {
+      chart: Object.assign({}, baseChart.chart, {
+        type: 'donut', height: 280,
+        events: {
+          dataPointSelection: function(e, ctx, cfg) {
+            var d = dist[cfg.dataPointIndex];
+            if (d) goWith({ sw: d.name });
+          }
+        }
+      }),
+      series: dist.map(function(d) { return d.qty; }),
+      labels: dist.map(function(d) { return d.name; }),
+      colors: ['#3b82f6', '#f59e0b', '#10b981', '#a78bfa', '#f43f5e', '#22d3ee', '#eab308', '#94a3b8'],
+      legend: { position: 'bottom', fontSize: '11px' },
+      tooltip: {
+        y: {
+          formatter: function(val) {
+            return val + ' license(s) · ' + (distTotal ? (val * 100 / distTotal).toFixed(1) : 0) + '% · click to filter';
+          }
+        }
+      }
+    })).render();
+  }
+
+  // ---- 4a. Software name filter (drives every section, like chart clicks) ----
+  document.getElementById('sw-name-filter').addEventListener('change', function() {
+    goWith({ sw: this.value || null });
+  });
+
+  // ---- 4b. Currency toggle (INR base -> USD via configurable rate) ----
+  var toggle = document.getElementById('sw-currency-toggle');
+  if (toggle) {
+    toggle.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-currency]');
+      if (!btn) return;
+      var cur = btn.dataset.currency;
+      toggle.querySelectorAll('[data-currency]').forEach(function(b) {
+        var active = b === btn;
+        b.className = active ? 'px-4 py-1.5 bg-blue-600 text-white font-medium' : 'px-4 py-1.5 bg-white/5 text-slate-300';
+      });
+      document.querySelectorAll('.sw-currency-label').forEach(function(el) { el.textContent = cur; });
+      document.querySelectorAll('.sw-amount').forEach(function(cell) {
+        var inr = parseFloat(cell.dataset.inr);
+        if (isNaN(inr)) { cell.textContent = '—'; return; }
+        if (cur === 'USD') {
+          cell.textContent = '$' + (inr / USD_INR_RATE).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        } else {
+          cell.textContent = '₹' + inr.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+        }
+      });
+    });
+  }
+})();
+</script>

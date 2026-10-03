@@ -1,0 +1,159 @@
+<div x-data="{ poOpen: false, reserveOpen: false, attachOpen: false }">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Advanced Lifecycle</h1>
+    <p class="text-sm text-slate-500 mt-1">Purchase orders, reservations, and attachment links</p>
+  </div>
+  <div class="flex gap-2">
+    <button @click="poOpen = true" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">+ Purchase Order</button>
+    <button @click="reserveOpen = true" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">+ Reservation</button>
+    <button @click="attachOpen = true" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">+ Attachment</button>
+  </div>
+</div>
+
+<div class="space-y-6">
+  <div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+    <h2 class="font-heading font-semibold text-white px-6 pt-6 pb-4">Purchase Orders</h2>
+    <div class="table-responsive">
+      <table class="w-full min-w-[700px] text-sm">
+        <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+          <th class="px-6 py-3">PO Number</th><th class="px-6 py-3">Supplier</th><th class="px-6 py-3">Status</th><th class="px-6 py-3">Order Date</th><th class="px-6 py-3">Expected</th><th class="px-6 py-3">Amount</th>
+        </tr></thead>
+        <tbody class="divide-y divide-white/5">
+          <% for (const po of purchase_orders) { %>
+          <tr><td class="px-6 py-3 text-white font-mono"><%= po.po_number %></td><td class="px-6 py-3 text-slate-400"><%= po.supplier_name || '—' %></td>
+              <td class="px-6 py-3"><span class="px-2 py-0.5 rounded bg-white/5 text-xs"><%= po.status %></span></td>
+              <td class="px-6 py-3 text-slate-400"><%= formatDate(po.order_date) %></td><td class="px-6 py-3 text-slate-400"><%= formatDate(po.expected_date) %></td>
+              <td class="px-6 py-3 text-slate-400"><%= po.total_amount ? Number(po.total_amount).toFixed(2) : '—' %></td></tr>
+          <% } %>
+          <% if (!purchase_orders.length) { %><tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">No purchase orders.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+    <h2 class="font-heading font-semibold text-white px-6 pt-6 pb-4">Asset Reservations</h2>
+    <div class="table-responsive">
+      <table class="w-full min-w-[700px] text-sm">
+        <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+          <th class="px-6 py-3">Asset</th><th class="px-6 py-3">User</th><th class="px-6 py-3">From</th><th class="px-6 py-3">Until</th><th class="px-6 py-3">Status</th>
+        </tr></thead>
+        <tbody class="divide-y divide-white/5">
+          <% for (const r of reservations) { %>
+          <tr><td class="px-6 py-3 text-white"><%= r.asset_name %> <span class="text-xs text-slate-500 font-mono"><%= r.asset_tag %></span></td>
+              <td class="px-6 py-3 text-slate-400"><%= r.user_name %></td>
+              <td class="px-6 py-3 text-slate-400"><%= formatDate(r.reserved_from) %></td><td class="px-6 py-3 text-slate-400"><%= formatDate(r.reserved_until) %></td>
+              <td class="px-6 py-3"><span class="px-2 py-0.5 rounded bg-white/5 text-xs"><%= r.status %></span></td></tr>
+          <% } %>
+          <% if (!reservations.length) { %><tr><td colspan="5" class="px-6 py-8 text-center text-slate-500">No reservations.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+    <h2 class="font-heading font-semibold text-white px-6 pt-6 pb-4">Attachments</h2>
+    <div class="table-responsive">
+      <table class="w-full min-w-[700px] text-sm">
+        <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+          <th class="px-6 py-3">Title</th><th class="px-6 py-3">Target</th><th class="px-6 py-3">Type</th><th class="px-6 py-3">Uploaded By</th><th class="px-6 py-3">Link</th>
+        </tr></thead>
+        <tbody class="divide-y divide-white/5">
+          <% for (const a of attachments) { %>
+          <tr><td class="px-6 py-3 text-white"><%= a.title %></td><td class="px-6 py-3 text-slate-400"><%= a.target_name %></td>
+              <td class="px-6 py-3 text-slate-400"><%= a.attachment_type %></td><td class="px-6 py-3 text-slate-400"><%= a.uploaded_by_name || '—' %></td>
+              <td class="px-6 py-3"><% if (a.file_url) { %><a href="<%= a.file_url %>" target="_blank" class="text-blue-400 text-xs hover:underline">Open</a><% } %></td></tr>
+          <% } %>
+          <% if (!attachments.length) { %><tr><td colspan="5" class="px-6 py-8 text-center text-slate-500">No attachments.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PO modal -->
+<div x-show="poOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="poOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">New Purchase Order</h3>
+    <form method="POST" action="<%= hams_url('/advanced/purchase-orders') %>" class="space-y-3">
+      <%- csrf_field %>
+      <div><label class="block text-xs text-slate-400 mb-1">PO Number *</label>
+        <input type="text" name="po_number" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs text-slate-400 mb-1">Supplier</label>
+        <select name="supplier_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option><% for (const s of references.suppliers) { %><option value="<%= s.id %>"><%= s.name %></option><% } %>
+        </select></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block text-xs text-slate-400 mb-1">Order Date</label><input type="date" name="order_date" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div><label class="block text-xs text-slate-400 mb-1">Expected Date</label><input type="date" name="expected_date" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      </div>
+      <div><label class="block text-xs text-slate-400 mb-1">Total Amount</label>
+        <input type="number" step="0.01" name="total_amount" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs text-slate-400 mb-1">Notes</label>
+        <textarea name="notes" rows="2" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea></div>
+      <div class="flex justify-end gap-2"><button type="button" @click="poOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Reservation modal -->
+<div x-show="reserveOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="reserveOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">New Reservation</h3>
+    <form method="POST" action="<%= hams_url('/advanced/reservations') %>" class="space-y-3">
+      <%- csrf_field %>
+      <div><label class="block text-xs text-slate-400 mb-1">Asset *</label>
+        <select name="asset_id" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— Select —</option><% for (const a of references.assets) { %><option value="<%= a.id %>"><%= a.name %> (<%= a.asset_tag %>)</option><% } %>
+        </select></div>
+      <div><label class="block text-xs text-slate-400 mb-1">User *</label>
+        <select name="user_id" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— Select —</option><% for (const u of references.users) { %><option value="<%= u.id %>"><%= u.name %></option><% } %>
+        </select></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block text-xs text-slate-400 mb-1">From</label><input type="date" name="reserved_from" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div><label class="block text-xs text-slate-400 mb-1">Until</label><input type="date" name="reserved_until" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      </div>
+      <div><label class="block text-xs text-slate-400 mb-1">Notes</label>
+        <textarea name="notes" rows="2" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea></div>
+      <div class="flex justify-end gap-2"><button type="button" @click="reserveOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Attachment modal -->
+<div x-show="attachOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="attachOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">New Attachment Link</h3>
+    <form method="POST" action="<%= hams_url('/advanced/attachments') %>" class="space-y-3">
+      <%- csrf_field %>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block text-xs text-slate-400 mb-1">Entity Type</label>
+          <select name="entity_type" class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+            <option value="asset">Asset</option><option value="license">License</option><option value="maintenance">Maintenance</option>
+          </select></div>
+        <div><label class="block text-xs text-slate-400 mb-1">Entity ID *</label>
+          <input type="number" name="entity_id" required class="w-full px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      </div>
+      <div><label class="block text-xs text-slate-400 mb-1">Title *</label>
+        <input type="text" name="title" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs text-slate-400 mb-1">File URL</label>
+        <input type="text" name="file_url" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs text-slate-400 mb-1">Type</label>
+        <select name="attachment_type" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="document">Document</option><option value="image">Image</option><option value="invoice">Invoice</option><option value="warranty">Warranty</option>
+        </select></div>
+      <div><label class="block text-xs text-slate-400 mb-1">Notes</label>
+        <textarea name="notes" rows="2" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea></div>
+      <div class="flex justify-end gap-2"><button type="button" @click="attachOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create</button></div>
+    </form>
+  </div>
+</div>
+</div>

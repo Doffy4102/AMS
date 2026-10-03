@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{ darkMode: document.documentElement.classList.contains('dark') }" :class="{ 'dark': darkMode, 'light': !darkMode }">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HAMS Enterprise | Enterprise IT Operations</title>
+<meta name="theme-color" content="#4f46e5">
+<meta name="csrf-token" content="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+<link rel="manifest" href="/manifest.json">
+<script>
+(function() {
+  var theme = localStorage.getItem('hams-theme') || 'dark';
+  document.documentElement.classList.add(theme === 'light' ? 'light' : 'dark');
+})();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: {
+    colors: { hams: { bg: '#0a0a0b', card: '#141417', border: '#27272a', primary: '#3b82f6', accent: '#6366f1' } },
+    fontFamily: { sans: ['Inter', 'sans-serif'], heading: ['Outfit', 'sans-serif'] }
+  }}
+};
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root { --hams-bg: #0a0a0b; --hams-card: #141417; --hams-border: rgba(255,255,255,.05); --hams-text: #e2e8f0; --hams-text-muted: #94a3b8; }
+.light { --hams-bg: #f8fafc; --hams-card: #ffffff; --hams-border: rgba(15,23,42,.08); --hams-text: #0f172a; --hams-text-muted: #64748b; }
+body { background: var(--hams-bg); color: var(--hams-text); font-family: 'Inter', sans-serif; }
+h1,h2,h3,.font-heading { font-family: 'Outfit', sans-serif; }
+.glass { background: var(--hams-card); backdrop-filter: blur(20px); border-bottom: 1px solid var(--hams-border); }
+.table-responsive { overflow-x: auto; border-radius: 1.5rem; scrollbar-width: none; }
+.table-responsive::-webkit-scrollbar { display: none; }
+[x-cloak] { display: none !important; }
+.light .bg-hams-bg { background-color: #f8fafc !important; }
+.light .bg-hams-card { background-color: #ffffff !important; }
+.light .text-white { color: #0f172a !important; }
+.light .text-slate-200 { color: #1e293b !important; }
+.light .text-slate-300 { color: #334155 !important; }
+.light .text-slate-400 { color: #64748b !important; }
+.light .text-slate-500 { color: #64748b !important; }
+.light .border-white\/5 { border-color: rgba(15,23,42,.08) !important; }
+.light .bg-white\/5 { background-color: rgba(15,23,42,.04) !important; }
+.light .divide-white\/5 > * { border-color: rgba(15,23,42,.06) !important; }
+.light input, .light select, .light textarea { color-scheme: light; }
+.dark input, .dark select, .dark textarea { color-scheme: dark; }
+input, select, textarea { background: var(--hams-bg); border: 1px solid var(--hams-border); color: var(--hams-text); }
+</style>
+</head>
+<body class="bg-hams-bg text-slate-200 antialiased overflow-x-hidden"
+      x-data="{ sidebarOpen: window.innerWidth >= 1024, isMobile: window.innerWidth < 1024 }"
+      @resize.window="isMobile = window.innerWidth < 1024; if (!isMobile) sidebarOpen = true">
+
+<!-- Command palette -->
+<div x-data="{ open: false, query: '' }" @keydown.window.ctrl.k.prevent="open = true; $nextTick(() => $refs.searchInput && $refs.searchInput.focus())"
+     @open-command-palette.window="open = true; $nextTick(() => $refs.searchInput && $refs.searchInput.focus())"
+     @keydown.escape.window="open = false" x-cloak>
+  <div x-show="open" class="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="open = false"></div>
+    <div class="relative w-full max-w-xl bg-hams-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+      <input x-ref="searchInput" x-model="query" type="text" placeholder="Search assets, users, actions..."
+             class="w-full px-5 py-4 bg-transparent border-0 border-b border-white/5 outline-none text-sm">
+      <div class="p-3 text-xs text-slate-500 uppercase tracking-wider px-5">Navigation &amp; Quick Actions</div>
+      <div class="pb-3 max-h-80 overflow-y-auto">
+        
+        
+        <a href="http://localhost:3000/assets/create" x-show="!query || 'add new asset create hardware'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center"><i data-lucide="plus" class="w-4 h-4"></i></span>
+          Add New Asset
+        </a>
+        
+        <a href="http://localhost:3000/assets" x-show="!query || 'assets catalog hardware list'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+          Assets Catalog
+        </a>
+        
+        <a href="http://localhost:3000/inventory/licenses" x-show="!query || 'license software seats'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-pink-500/15 text-pink-400 flex items-center justify-center"><i data-lucide="key-round" class="w-4 h-4"></i></span>
+          License Manager
+        </a>
+        
+        <a href="http://localhost:3000/inventory" x-show="!query || 'stock inventory consumables accessories'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center"><i data-lucide="package" class="w-4 h-4"></i></span>
+          Stock &amp; Inventory
+        </a>
+        
+        <a href="http://localhost:3000/maintenance" x-show="!query || 'operations maintenance repair'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-orange-500/15 text-orange-400 flex items-center justify-center"><i data-lucide="wrench" class="w-4 h-4"></i></span>
+          Operations &amp; Maintenance
+        </a>
+        
+        <a href="http://localhost:3000/archive" x-show="!query || 'archive deleted restore'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center"><i data-lucide="archive" class="w-4 h-4"></i></span>
+          Archive &amp; Soft-Deletes
+        </a>
+        
+        <a href="http://localhost:3000/settings/monitoring" x-show="!query || 'audit monitoring health'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center"><i data-lucide="activity" class="w-4 h-4"></i></span>
+          Audit &amp; Monitoring
+        </a>
+        
+      </div>
+      <div class="px-5 py-2 border-t border-white/5 text-[10px] text-slate-500 flex justify-between">
+        <span>Enterprise Search Engine v1.0</span><span>&uarr;&darr; to navigate &middot; ENTER to select</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flex h-screen overflow-hidden">
+  <!-- Mobile backdrop -->
+  <div x-show="isMobile && sidebarOpen" class="fixed inset-0 bg-black/50 z-30 lg:hidden" @click="sidebarOpen = false" x-cloak></div>
+
+  <!-- Sidebar -->
+  <aside class="fixed lg:static inset-y-0 left-0 z-40 w-72 bg-hams-card border-r border-white/5 flex flex-col transition-transform duration-200"
+         :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:-translate-x-full lg:hidden'" x-show="sidebarOpen || !isMobile" x-cloak>
+    <div class="h-20 md:h-24 flex items-center gap-3 px-6 border-b border-white/5 shrink-0">
+      
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg font-heading">H</div>
+      
+      <div class="min-w-0">
+        <div class="font-heading font-semibold text-white truncate">HAMS Enterprise</div>
+        <div class="text-[11px] text-slate-500 truncate">Enterprise Asset Management</div>
+      </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-4 py-5 space-y-6 text-sm">
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Core Systems</div>
+        <a href="http://localhost:3000" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="layout-dashboard" class="w-4 h-4"></i>Dashboard</a>
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Administration</div>
+        
+        <a href="http://localhost:3000/users" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="users" class="w-4 h-4"></i>Enterprise Directory</a>
+        <a href="http://localhost:3000/users/ldap" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="network" class="w-4 h-4"></i>LDAP Directory &amp; Sync</a>
+        
+        
+        <a href="http://localhost:3000/settings/roles" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="shield-check" class="w-4 h-4"></i>Roles &amp; Permissions</a>
+        
+        
+        <a href="http://localhost:3000/settings/identity" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="fingerprint" class="w-4 h-4"></i>Identity &amp; SSO</a>
+        <a href="http://localhost:3000/settings/security" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="shield" class="w-4 h-4"></i>Security Center</a>
+        <a href="http://localhost:3000/agents" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="radio" class="w-4 h-4"></i>Endpoint Agents</a>
+        <a href="http://localhost:3000/settings/branding" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="settings" class="w-4 h-4"></i>All Settings</a>
+        
+      </div>
+      
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Asset Management</div>
+        
+        <a href="http://localhost:3000/new-joinees" class="flex items-center gap-3 px-3 py-2 rounded-xl bg-blue-600/10 text-blue-500 font-medium border-l-2 border-blue-500"><i data-lucide="user-check" class="w-4 h-4"></i>New Joinees</a>
+        <a href="http://localhost:3000/assets" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>Hardware</a>
+        <a href="http://localhost:3000/procurement" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="receipt" class="w-4 h-4"></i>Procurement</a>
+        <a href="http://localhost:3000/assets/scan" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="qr-code" class="w-4 h-4"></i>Mobile Scanner</a>
+        <a href="http://localhost:3000/portal/scan" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="scan-barcode" class="w-4 h-4"></i>Barcode Scanner</a>
+        
+        <a href="http://localhost:3000/maintenance" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="wrench" class="w-4 h-4"></i>Maintenance</a>
+        
+        <a href="http://localhost:3000/inventory/accessories" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="mouse" class="w-4 h-4"></i>Accessories</a>
+        <a href="http://localhost:3000/inventory/components" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="cpu" class="w-4 h-4"></i>Components</a>
+        
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">License Management</div>
+        <a href="http://localhost:3000/inventory/licenses" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Licenses</a>
+        <a href="http://localhost:3000/software" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="app-window" class="w-4 h-4"></i>Software</a>
+        <a href="http://localhost:3000/license-allocation" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="gauge" class="w-4 h-4"></i>License Allocation &amp; Utilization</a>
+        
+        <a href="http://localhost:3000/licenses/setup" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i>License Setup</a>
+        
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Inventory Module</div>
+        <a href="http://localhost:3000/inventory/consumables" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="package-minus" class="w-4 h-4"></i>Consumables</a>
+        <a href="http://localhost:3000/inventory-setup" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="boxes" class="w-4 h-4"></i>Inventory Setup</a>
+        <a href="http://localhost:3000/stock-movements" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="arrow-left-right" class="w-4 h-4"></i>Stock Movements</a>
+      </div>
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Analytics</div>
+        
+        <a href="http://localhost:3000/reports" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="file-bar-chart" class="w-4 h-4"></i>Reports</a>
+        
+        
+        <a href="http://localhost:3000/import" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="file-up" class="w-4 h-4"></i>Import Center</a>
+        
+        
+        <a href="http://localhost:3000/requests" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="clipboard-list" class="w-4 h-4"></i>Requests</a>
+        
+      </div>
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">My Workspace</div>
+        <a href="http://localhost:3000/portal/my-assets" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>My Assets</a>
+        <a href="http://localhost:3000/portal/requests" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="message-square" class="w-4 h-4"></i>My Requests</a>
+      </div>
+      
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <header class="h-20 md:h-24 glass flex items-center gap-4 px-4 md:px-8 shrink-0 z-20">
+      <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="menu" class="w-5 h-5"></i></button>
+      <button @click="$dispatch('open-command-palette')"
+              class="flex-1 max-w-md flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/5 text-slate-500 text-sm hover:border-white/10">
+        <i data-lucide="search" class="w-4 h-4"></i>
+        <span class="hidden md:inline">Search everything&hellip;</span><span class="md:hidden">Search&hellip;</span>
+        <kbd class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-white/10 hidden md:inline">Ctrl + K</kbd>
+      </button>
+      <div class="ml-auto flex items-center gap-2">
+        
+        <button id="hams-ai-btn" title="HAMS AI Assistant" class="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-violet-600/20 to-blue-600/20 border border-violet-500/30 hover:border-violet-400/60 text-violet-300 text-sm font-medium">
+          <i data-lucide="sparkles" class="w-4 h-4"></i><span class="hidden md:inline">Ask AI</span>
+        </button>
+        
+        
+        <a href="http://localhost:3000/settings/branding" class="p-2.5 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="settings" class="w-5 h-5"></i></a>
+        
+        <button @click="darkMode = !darkMode; localStorage.setItem('hams-theme', darkMode ? 'dark' : 'light')" class="p-2.5 rounded-xl hover:bg-white/5 text-slate-400">
+          <i data-lucide="moon" class="w-5 h-5" x-show="darkMode"></i>
+          <i data-lucide="sun" class="w-5 h-5" x-show="!darkMode" x-cloak></i>
+        </button>
+        
+        <div x-data="{ createNewOpen: false }" class="relative" @click.outside="createNewOpen = false">
+          <button @click="createNewOpen = !createNewOpen" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">
+            <i data-lucide="plus" class="w-4 h-4"></i><span class="hidden md:inline">Create New</span>
+          </button>
+          <div x-show="createNewOpen" x-cloak x-transition class="absolute right-0 mt-2 w-56 bg-hams-card border border-white/10 rounded-2xl shadow-xl py-2 z-[150]">
+            <a href="http://localhost:3000/assets/create" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>Hardware</a>
+            <a href="http://localhost:3000/inventory/licenses" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Licenses</a>
+            
+            <a href="http://localhost:3000/inventory/accessories" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="mouse" class="w-4 h-4"></i>Accessories</a>
+            <a href="http://localhost:3000/inventory/consumables" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="package-minus" class="w-4 h-4"></i>Consumables</a>
+            <a href="http://localhost:3000/inventory/components" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="cpu" class="w-4 h-4"></i>Components</a>
+            
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/users" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="users" class="w-4 h-4"></i>Users</a>
+            
+          </div>
+        </div>
+        
+        
+        <div x-data="{ profileOpen: false }" class="relative" @click.outside="profileOpen = false">
+          <button @click="profileOpen = !profileOpen" class="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-white/5">
+            <img src="https://ui-avatars.com/api/?name=Administrator&amp;background=3b82f6&amp;color=fff"
+                 class="w-9 h-9 rounded-xl object-cover" alt="avatar">
+            <span class="hidden md:block text-sm font-medium text-white max-w-[120px] truncate">Administrator</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 transition-transform" :class="profileOpen && 'rotate-180'"></i>
+          </button>
+          <div x-show="profileOpen" x-cloak x-transition class="absolute right-0 mt-2 w-60 bg-hams-card border border-white/10 rounded-2xl shadow-xl py-2 z-[150]">
+            <a href="http://localhost:3000/portal/my-assets" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>My Assets</a>
+            <a href="http://localhost:3000/portal/requests" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="message-square" class="w-4 h-4"></i>My Requests</a>
+            
+            <a href="http://localhost:3000/requests" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="clipboard-list" class="w-4 h-4"></i>Requests</a>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/profile" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="user" class="w-4 h-4"></i>Edit Profile</a>
+            <a href="http://localhost:3000/profile" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key" class="w-4 h-4"></i>Change Password</a>
+            <button @click="darkMode = !darkMode; localStorage.setItem('hams-theme', darkMode ? 'dark' : 'light')" class="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5">
+              <i data-lucide="moon" class="w-4 h-4"></i>Dark Mode <span class="ml-auto text-xs text-slate-500" x-text="darkMode ? 'ON' : 'OFF'"></span>
+            </button>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/settings/api-tokens" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Manage API keys</a>
+            <a href="http://localhost:3000/logs" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="scroll-text" class="w-4 h-4"></i>Log Viewer</a>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/logout" class="flex items-center gap-3 px-4 py-2 text-sm text-rose-400 hover:bg-rose-500/10"><i data-lucide="log-out" class="w-4 h-4"></i>Logout</a>
+          </div>
+        </div>
+        
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto px-4 md:px-8 py-6 md:py-8">
+      
+      <div x-data="njSection()">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">New Joinees</h1>
+    <p class="text-sm text-slate-500 mt-1">Onboarding asset allocation — the agent drafts a laptop &amp; headphones from the joinee's location per designation; nothing is assigned until an engineer approves</p>
+  </div>
+  <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 text-xs font-semibold flex items-center gap-1.5"><i data-lucide="bot" class="w-3.5 h-3.5"></i>Auto-allocation agent</span>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[1100px] text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-4">Name</th><th class="px-6 py-4">Employee ID</th><th class="px-6 py-4">Location</th><th class="px-6 py-4">Employment</th><th class="px-6 py-4">Date of Joining</th><th class="px-6 py-4">Designation</th><th class="px-6 py-4">Drafted Allocation</th><th class="px-6 py-4">Status</th><th class="px-6 py-4 text-right">Actions</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <img src="https://ui-avatars.com/api/?name=Aarav%20Deshmukh&background=6366f1&color=fff" class="w-9 h-9 rounded-xl" alt="">
+              <span class="font-medium text-white">Aarav Deshmukh</span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-slate-400">80001</td>
+          <td class="px-6 py-4 text-slate-400">CT Powai</td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg text-xs bg-sky-500/10 text-sky-400">Employee</span></td>
+          <td class="px-6 py-4 text-slate-400">2026-07-14</td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs">Fresher</span></td>
+          <td class="px-6 py-4">
+            
+            <div class="text-amber-400/90 flex items-center gap-1.5"><i data-lucide="laptop" class="w-3.5 h-3.5"></i>Laptop not available at CT Powai</div>
+            
+            
+            <div class="text-amber-400/90 text-xs mt-1 flex items-center gap-1.5"><i data-lucide="headphones" class="w-3.5 h-3.5"></i>Headphones not available at CT Powai</div>
+            
+            <div class="text-[11px] text-slate-500 mt-1">Agent draft — Standard laptop</div>
+          </td>
+          <td class="px-6 py-4">
+            
+            <span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-semibold">AWAITING APPROVAL</span>
+            
+          </td>
+          <td class="px-6 py-4">
+            
+            <div class="flex justify-end gap-2">
+              <button @click="openEdit(NJ_DATA[1])" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i>Edit</button>
+              <form method="POST" action="http://localhost:3000/new-joinees/1/allocate" onsubmit="return confirm('Allocate the drafted laptop and headphones to Aarav Deshmukh? This finalizes the assignment.')">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button type="submit" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed" disabled><i data-lucide="check" class="w-3.5 h-3.5"></i>Allocate</button>
+              </form>
+            </div>
+            
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <img src="https://ui-avatars.com/api/?name=Rohan%20Iyer&background=6366f1&color=fff" class="w-9 h-9 rounded-xl" alt="">
+              <span class="font-medium text-white">Rohan Iyer</span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-slate-400">80003</td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech SEZ3</td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg text-xs bg-purple-500/10 text-purple-400">Contractor</span></td>
+          <td class="px-6 py-4 text-slate-400">2026-07-14</td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs">Consultant</span></td>
+          <td class="px-6 py-4">
+            
+            <div class="text-slate-300 flex items-center gap-1.5"><i data-lucide="laptop" class="w-3.5 h-3.5 text-slate-500"></i>MacBook Air 13&#34;</div>
+            
+            
+            <div class="text-slate-400 text-xs mt-1 flex items-center gap-1.5"><i data-lucide="headphones" class="w-3.5 h-3.5 text-slate-500"></i>Dell WH1022 Headphone</div>
+            
+            <div class="text-[11px] text-slate-500 mt-1">Agent draft — High-performance business laptop</div>
+          </td>
+          <td class="px-6 py-4">
+            
+            <span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-semibold">AWAITING APPROVAL</span>
+            
+          </td>
+          <td class="px-6 py-4">
+            
+            <div class="flex justify-end gap-2">
+              <button @click="openEdit(NJ_DATA[3])" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i>Edit</button>
+              <form method="POST" action="http://localhost:3000/new-joinees/3/allocate" onsubmit="return confirm('Allocate the drafted laptop and headphones to Rohan Iyer? This finalizes the assignment.')">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button type="submit" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed" ><i data-lucide="check" class="w-3.5 h-3.5"></i>Allocate</button>
+              </form>
+            </div>
+            
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <img src="https://ui-avatars.com/api/?name=Priya%20Venkatesan&background=6366f1&color=fff" class="w-9 h-9 rounded-xl" alt="">
+              <span class="font-medium text-white">Priya Venkatesan</span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-slate-400">80004</td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech Hyderabad</td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg text-xs bg-sky-500/10 text-sky-400">Employee</span></td>
+          <td class="px-6 py-4 text-slate-400">2026-07-14</td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs">AVP</span></td>
+          <td class="px-6 py-4">
+            
+            <div class="text-slate-300 flex items-center gap-1.5"><i data-lucide="laptop" class="w-3.5 h-3.5 text-slate-500"></i>Lenovo V 130</div>
+            
+            
+            <div class="text-amber-400/90 text-xs mt-1 flex items-center gap-1.5"><i data-lucide="headphones" class="w-3.5 h-3.5"></i>Headphones not available at CitiusTech Hyderabad</div>
+            
+            <div class="text-[11px] text-slate-500 mt-1">Agent draft — MacBook</div>
+          </td>
+          <td class="px-6 py-4">
+            
+            <span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-semibold">AWAITING APPROVAL</span>
+            
+          </td>
+          <td class="px-6 py-4">
+            
+            <div class="flex justify-end gap-2">
+              <button @click="openEdit(NJ_DATA[4])" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i>Edit</button>
+              <form method="POST" action="http://localhost:3000/new-joinees/4/allocate" onsubmit="return confirm('Allocate the drafted laptop and headphones to Priya Venkatesan? This finalizes the assignment.')">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button type="submit" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed" disabled><i data-lucide="check" class="w-3.5 h-3.5"></i>Allocate</button>
+              </form>
+            </div>
+            
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <img src="https://ui-avatars.com/api/?name=Vikram%20Malhotra&background=6366f1&color=fff" class="w-9 h-9 rounded-xl" alt="">
+              <span class="font-medium text-white">Vikram Malhotra</span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-slate-400">80005</td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech Chennai SEZ</td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg text-xs bg-sky-500/10 text-sky-400">Employee</span></td>
+          <td class="px-6 py-4 text-slate-400">2026-07-14</td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs">Senior Director</span></td>
+          <td class="px-6 py-4">
+            
+            <div class="text-slate-300 flex items-center gap-1.5"><i data-lucide="laptop" class="w-3.5 h-3.5 text-slate-500"></i>V130-15IKB Type 81HN</div>
+            
+            
+            <div class="text-amber-400/90 text-xs mt-1 flex items-center gap-1.5"><i data-lucide="headphones" class="w-3.5 h-3.5"></i>Headphones not available at CitiusTech Chennai SEZ</div>
+            
+            <div class="text-[11px] text-slate-500 mt-1">Agent draft — Premium MacBook</div>
+          </td>
+          <td class="px-6 py-4">
+            
+            <span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-semibold">AWAITING APPROVAL</span>
+            
+          </td>
+          <td class="px-6 py-4">
+            
+            <div class="flex justify-end gap-2">
+              <button @click="openEdit(NJ_DATA[5])" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i>Edit</button>
+              <form method="POST" action="http://localhost:3000/new-joinees/5/allocate" onsubmit="return confirm('Allocate the drafted laptop and headphones to Vikram Malhotra? This finalizes the assignment.')">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button type="submit" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed" disabled><i data-lucide="check" class="w-3.5 h-3.5"></i>Allocate</button>
+              </form>
+            </div>
+            
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <img src="https://ui-avatars.com/api/?name=Sneha%20Kulkarni&background=6366f1&color=fff" class="w-9 h-9 rounded-xl" alt="">
+              <span class="font-medium text-white">Sneha Kulkarni</span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-slate-400">80002</td>
+          <td class="px-6 py-4 text-slate-400">CT Pune Qubix SEZ1</td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg text-xs bg-sky-500/10 text-sky-400">Employee</span></td>
+          <td class="px-6 py-4 text-slate-400">2026-07-14</td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs">Engineer</span></td>
+          <td class="px-6 py-4">
+            
+            <div class="text-slate-300 flex items-center gap-1.5"><i data-lucide="laptop" class="w-3.5 h-3.5 text-slate-500"></i>Thinkpad-L14 Gen5 Type 21L1</div>
+            
+            
+            <div class="text-slate-400 text-xs mt-1 flex items-center gap-1.5"><i data-lucide="headphones" class="w-3.5 h-3.5 text-slate-500"></i>Dell WH125 Headphone</div>
+            
+            <div class="text-[11px] text-slate-500 mt-1">Agent draft — Standard developer laptop</div>
+          </td>
+          <td class="px-6 py-4">
+            
+            <span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-semibold">ALLOCATED</span>
+            <div class="text-[11px] text-slate-500 mt-1">by Administrator</div>
+            
+          </td>
+          <td class="px-6 py-4">
+            
+            <div class="text-right text-xs text-slate-500">2026-07-14</div>
+            
+          </td>
+        </tr>
+        
+        
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit allocation modal (location-scoped dropdowns) -->
+<div x-show="editOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="editOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-lg">
+    <h3 class="font-heading font-semibold text-white mb-1">Edit Allocation</h3>
+    <p class="text-xs text-slate-500 mb-4" x-text="joinee ? joinee.name + ' · ' + joinee.designation + ' · ' + joinee.locationName + ' — agent recommendation: ' + joinee.ruleLabel : ''"></p>
+    <form method="POST" :action="joinee ? njUrl + joinee.id + '/allocation' : '#'" class="space-y-4">
+      <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Laptop * <span class="text-slate-500 font-normal" x-text="joinee ? '(available at ' + joinee.locationName + ')' : ''"></span></label>
+        <select name="laptop_asset_id" x-model="laptopId" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <template x-if="!laptopChoices().length"><option value="" disabled selected>Asset not available</option></template>
+          <template x-for="l in laptopChoices()" :key="l.id">
+            <option :value="String(l.id)" x-text="l.model + ' — ' + l.tag + (l.premium ? ' · Premium' : '')"></option>
+          </template>
+        </select>
+        <label x-show="joinee && joinee.premiumOnly && laptopChoices(true).length" class="mt-2 flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+          <input type="checkbox" x-model="exception" class="rounded border-white/10 bg-hams-bg">
+          Exception — show all available laptops at this location (not only premium)
+        </label>
+        <p x-show="joinee && joinee.premiumOnly && !exception && laptopChoices().length" class="mt-1 text-[11px] text-slate-500">Showing premium laptops only (designation-based). Use the exception toggle to see every laptop at this location.</p>
+        <p x-show="joinee && !laptopChoices(true).length" class="mt-1 text-[11px] text-amber-400/90">No laptops are currently available at this joinee's location.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Headphones * <span class="text-slate-500 font-normal" x-text="joinee ? '(available at ' + joinee.locationName + ')' : ''"></span></label>
+        <select name="headphone_accessory_id" x-model="headphoneId" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <template x-if="!headphoneChoices().length"><option value="" disabled selected>Asset not available</option></template>
+          <template x-for="h in headphoneChoices()" :key="h.id">
+            <option :value="String(h.id)" x-text="h.name + (h.model ? ' — ' + h.model : '') + ' · ' + h.available + ' in stock'"></option>
+          </template>
+        </select>
+        <p x-show="joinee && !headphoneChoices().length" class="mt-1 text-[11px] text-amber-400/90">No headphones are currently available at this joinee's location.</p>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" @click="editOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" :disabled="!laptopChoices().length || !headphoneChoices().length" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed">Save Draft</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+
+<script>
+var NJ_LAPTOPS = [{"id":443,"tag":"CTAADPG038PLL","model":"Lenovo-Thinkpad-L14 GEN2 Type-20X1","locationId":3,"premium":false},{"id":435,"tag":"BL-ITSTOCK ON 04/08/2023","model":"Lenovo-Thinkpad-L14 GEN3 Type 21C1","locationId":3,"premium":false},{"id":438,"tag":"Chennai wilco IT stock 09/04/2026","model":"Lenovo-Thinkpad-L14 GEN3 Type 21C1","locationId":1,"premium":false},{"id":344,"tag":"Hyderabad wilco IT stock 12/05/2026","model":"Lenovo-Thinkpad-L14 GEN3 Type 21C1","locationId":1,"premium":false},{"id":433,"tag":"MS-ITSTOCK ON 15/04/2024","model":"Lenovo-Thinkpad-L14 GEN3 Type 21C1","locationId":3,"premium":false},{"id":163,"tag":"Hyderabad wilco IT stock 05/08/2024","model":"Lenovo V 130","locationId":1,"premium":false},{"id":168,"tag":"Hyderabad wilco IT stock 13/09/2024","model":"Lenovo V 130","locationId":1,"premium":false},{"id":166,"tag":"Hyderabad wilco IT stock 29/06/2026","model":"Lenovo V 130","locationId":1,"premium":false},{"id":29,"tag":"MS IT STOCK ON 24/07/2025","model":"MacBook Air 13\"","locationId":3,"premium":true},{"id":182,"tag":"BL-ITSTOCK ON 11/12/2025","model":"MacBook Pro 13","locationId":6,"premium":true},{"id":24,"tag":"Rental Return to vendor from Mumbai","model":"MacBook Pro 13","locationId":10,"premium":true},{"id":122,"tag":"US-ITSTOCK ON 28/11/2024","model":"MacBook Pro 13","locationId":2,"premium":true},{"id":179,"tag":"Pune QBX ITSTOCK ON 27/05/2024","model":"MacBook Pro 13.3\"","locationId":5,"premium":true},{"id":40,"tag":"BL-ITSTOCK ON 26/09/2025","model":"MacBook Pro 14","locationId":3,"premium":true},{"id":35,"tag":"Returned to client date on 17/02/2025","model":"MacBook Pro 14","locationId":6,"premium":true},{"id":121,"tag":"Returned to Client on 27/03/26","model":"MacBook Pro 14","locationId":2,"premium":true},{"id":22,"tag":"Returned to Client on 30/03/26","model":"MacBook Pro 14","locationId":2,"premium":true},{"id":178,"tag":"Returned to client date on 16/12/2024","model":"MacBook Pro 16 Inch","locationId":6,"premium":true},{"id":12,"tag":"Returned to client date on 22/07/2024","model":"MacBook Pro 16 Inch","locationId":2,"premium":true},{"id":10,"tag":"Returned to Client on 06/03/26","model":"MacBook Pro 16 Inch","locationId":6,"premium":true},{"id":134,"tag":"US IT Stock 18.05.26","model":"T14 Gen6 Type 21S6","locationId":2,"premium":false},{"id":132,"tag":"US IT Stock 30.6.26","model":"T14 Gen6 Type 21S6","locationId":2,"premium":false},{"id":153,"tag":"US-ITSTOCK ON 05/11/2025","model":"ThinkBook-13s G2-Type-20V9","locationId":2,"premium":false},{"id":149,"tag":"US-ITSTOCK ON 13/05/2026","model":"ThinkBook-13s G2-Type-20V9","locationId":2,"premium":false},{"id":151,"tag":"US-ITSTOCK ON 19/06/2026","model":"ThinkBook-13s G2-Type-20V9","locationId":2,"premium":false},{"id":139,"tag":"US wilco IT stock 23/09/2024","model":"ThinkBook-13s G2-Type-20V9","locationId":2,"premium":false},{"id":150,"tag":"USIT-STOCK-19/02/2025","model":"ThinkBook-13s G2-Type-20V9","locationId":2,"premium":false},{"id":146,"tag":"US-ITSTOCK ON 05/05/2026","model":"ThinkBook-13s G2-Type-20WC","locationId":2,"premium":false},{"id":147,"tag":"US-ITSTOCK ON 11/06/2025","model":"ThinkBook-13s G2-Type-20WC","locationId":2,"premium":false},{"id":145,"tag":"US-ITSTOCK ON 22/10/2025","model":"ThinkBook-13s G2-Type-20WC","locationId":2,"premium":false},{"id":227,"tag":"US wilco IT stock 18/03/2026","model":"ThinkBook-16 G6-Type-21KH","locationId":2,"premium":false},{"id":288,"tag":"Wilco USA","model":"ThinkBook-16 G6-Type-21KH","locationId":2,"premium":false},{"id":374,"tag":"Returned to Client on 22/10/25","model":"ThinkBook 15 G2-Type 20VE","locationId":3,"premium":false},{"id":239,"tag":"Chennai wilco IT stock 22/01/2026","model":"Thinkpad-E14 GEN4 Type-21H1","locationId":2,"premium":false},{"id":234,"tag":"Chennai wilco IT stock 27/02/2026","model":"Thinkpad-E14 GEN4 Type-21H1","locationId":2,"premium":false},{"id":143,"tag":"US-ITSTOCK ON 30/09/2025","model":"ThinkPad-L13-Yoga-Type 20VK","locationId":2,"premium":false},{"id":331,"tag":"Chennai wilco IT stock 10/03/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":334,"tag":"Chennai wilco IT stock 11/06/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":233,"tag":"Chennai wilco IT stock 13/03/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":340,"tag":"Chennai wilco IT stock 15/11/2024","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":232,"tag":"Chennai wilco IT stock 23/12/2025","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":321,"tag":"Hyderabad Wilco","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":246,"tag":"Hyderabad wilco IT stock 02/02/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":270,"tag":"Hyderabad wilco IT stock 02/07/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":316,"tag":"Hyderabad wilco IT stock 07/07/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":296,"tag":"Hyderabad wilco IT stock 08/07/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":300,"tag":"Hyderabad wilco IT stock 09/06/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":313,"tag":"Hyderabad wilco IT stock 13/04/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":301,"tag":"Hyderabad wilco IT stock 22/06/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":257,"tag":"Hyderabad wilco IT stock 25/03/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":302,"tag":"Hyderabad wilco IT stock 27/05/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":306,"tag":"Hyderabad wilco IT stock 29/04/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":261,"tag":"Hyderabad wilco IT stock 30/06/2026","model":"Thinkpad-L14 GEN4 Type-21H1","locationId":1,"premium":false},{"id":343,"tag":"Returned to client date on 05/06/2025","model":"ThinkPad-L15-Type-20U3","locationId":2,"premium":false},{"id":378,"tag":"Returned to client date on 01/01/2024","model":"ThinkPad-L15 Gen3-Type 21C8","locationId":3,"premium":false},{"id":377,"tag":"Returned to client date on 07/04/2025","model":"ThinkPad-L15 Gen3-Type 21C8","locationId":2,"premium":false},{"id":380,"tag":"Returned to client date on 13/12/2024","model":"ThinkPad-L15 Gen3-Type 21C8","locationId":3,"premium":false},{"id":382,"tag":"Returned to client date on 20/03/2025","model":"ThinkPad-L15 Gen3-Type 21C8","locationId":3,"premium":false},{"id":376,"tag":"Returned to client date on 25/10/2024","model":"ThinkPad-L15 Gen3-Type 21C8","locationId":3,"premium":false},{"id":373,"tag":"Returned to client date on 28/02/2024","model":"ThinkPad-L15 Gen3-Type 21C8","locationId":2,"premium":false},{"id":371,"tag":"Hyderabad wilco IT stock 31/10/2025","model":"ThinkPad-T14 Gen3-Type-21C1","locationId":1,"premium":false},{"id":412,"tag":"MS-ITSTOCK ON 17/09/2024","model":"ThinkPad-T14 Gen3-Type-21C1","locationId":2,"premium":false},{"id":396,"tag":"US-ITSTOCK ON 09/06/2026","model":"ThinkPad-T14 Gen3-Type-21C1","locationId":2,"premium":false},{"id":411,"tag":"US-ITSTOCK ON 14/04/2026","model":"ThinkPad-T14 Gen3-Type-21C1","locationId":2,"premium":false},{"id":386,"tag":"SDLC Asset Updated in IMS-24/5/23","model":"ThinkPad-T14 Gen3-Type-21C1-Touch","locationId":2,"premium":false},{"id":395,"tag":"US-ITSTOCK ON 07/01/2025","model":"ThinkPad-T14 Gen3-Type-21C1-Touch","locationId":2,"premium":false},{"id":160,"tag":"US-ITSTOCK ON 17/02/2026","model":"ThinkPad-X13 Yoga Gen1-Type 20SX","locationId":2,"premium":false},{"id":156,"tag":"US-ITSTOCK ON 07/04/2026","model":"ThinkPad-X390 Yoga-Type 20NN","locationId":2,"premium":false},{"id":154,"tag":"US-ITSTOCK ON 11/04/2024","model":"ThinkPad-X390 Yoga-Type 20NN","locationId":2,"premium":false},{"id":157,"tag":"US-ITSTOCK ON 12/02/2024","model":"ThinkPad-X390 Yoga-Type 20NN","locationId":2,"premium":false},{"id":172,"tag":"US-ITSTOCK-04/14/2025","model":"ThinkPad X1 Carbon","locationId":2,"premium":true},{"id":171,"tag":"US-ITSTOCK ON 05/03/2024","model":"ThinkPad X1 Carbon","locationId":2,"premium":true},{"id":174,"tag":"US-ITSTOCK ON 06/02/2024","model":"ThinkPad X1 Carbon","locationId":2,"premium":true},{"id":173,"tag":"US-ITSTOCK ON 15/10/2025","model":"ThinkPad X1 Carbon","locationId":2,"premium":true},{"id":164,"tag":"Chennai wilco IT stock 06/06/2025","model":"V130-15IKB Type 81HN","locationId":7,"premium":false},{"id":167,"tag":"Chennai wilco IT stock 12/12/2024","model":"V130-15IKB Type 81HN","locationId":7,"premium":false},{"id":161,"tag":"Chennai wilco IT stock 20/06/2024","model":"V130-15IKB Type 81HN","locationId":7,"premium":false},{"id":165,"tag":"Chennai wilco IT stock 30/03/2026","model":"V130-15IKB Type 81HN","locationId":7,"premium":false},{"id":162,"tag":"Chennai Wilco IT Stock ON 06/08/2024","model":"V130-15IKB Type 81HN","locationId":2,"premium":false},{"id":169,"tag":"Chennai Wilco IT Stock ON 08/07/2024","model":"V130-15IKB Type 81HN","locationId":7,"premium":false}];
+var NJ_HEADPHONES = [{"id":9,"name":"Dell WH1022 Headphone","model":"WH1022","locationId":3,"available":1},{"id":10,"name":"Dell WH1022 Headphone","model":"WH1022","locationId":3,"available":1},{"id":11,"name":"Dell WH1022 Headphone","model":"WH1022","locationId":3,"available":1},{"id":5,"name":"Dell WH125 Headphone","model":"Dell WH125","locationId":3,"available":1},{"id":7,"name":"Dell WH125 Headphone","model":"Dell WH125","locationId":3,"available":1},{"id":8,"name":"Dell WH125 Headphone","model":"Dell WH125","locationId":3,"available":1},{"id":14,"name":"Dell WH125 Headphone","model":"Dell WH125","locationId":3,"available":1},{"id":4,"name":"Sennheiser PC8-USB VOIP Headphone","model":"PC8-USB VOIP","locationId":2,"available":1}];
+var NJ_DATA = {"1":{"id":1,"name":"Aarav Deshmukh","designation":"Fresher","locationId":4,"locationName":"CT Powai","premiumOnly":false,"ruleLabel":"Standard laptop","laptopId":null,"headphoneId":null},"2":{"id":2,"name":"Sneha Kulkarni","designation":"Engineer","locationId":5,"locationName":"CT Pune Qubix SEZ1","premiumOnly":false,"ruleLabel":"Standard developer laptop","laptopId":205,"headphoneId":6},"3":{"id":3,"name":"Rohan Iyer","designation":"Consultant","locationId":3,"locationName":"CitiusTech SEZ3","premiumOnly":false,"ruleLabel":"High-performance business laptop","laptopId":29,"headphoneId":9},"4":{"id":4,"name":"Priya Venkatesan","designation":"AVP","locationId":1,"locationName":"CitiusTech Hyderabad","premiumOnly":true,"ruleLabel":"MacBook","laptopId":163,"headphoneId":null},"5":{"id":5,"name":"Vikram Malhotra","designation":"Senior Director","locationId":7,"locationName":"CitiusTech Chennai SEZ","premiumOnly":true,"ruleLabel":"Premium MacBook","laptopId":161,"headphoneId":null}};
+function njSection() {
+  return {
+    editOpen: false,
+    joinee: null,
+    laptopId: '',
+    headphoneId: '',
+    exception: false,
+    njUrl: "http://localhost:3000/new-joinees/",
+    openEdit(j) {
+      this.joinee = j;
+      this.exception = false;
+      var laptops = this.laptopChoices();
+      var headphones = this.headphoneChoices();
+      this.laptopId = j.laptopId ? String(j.laptopId) : (laptops[0] ? String(laptops[0].id) : '');
+      this.headphoneId = j.headphoneId ? String(j.headphoneId) : (headphones[0] ? String(headphones[0].id) : '');
+      this.editOpen = true;
+    },
+    // Location-scoped laptops: only assets at the joinee's location are ever
+    // offered. On top of that, premium designations see premium machines only
+    // until the exception toggle widens to all laptops at that location.
+    // Pass all=true to bypass the premium filter (used to decide whether the
+    // exception toggle is worth showing).
+    laptopChoices(all) {
+      if (!this.joinee) return [];
+      var loc = this.joinee.locationId;
+      var atLocation = NJ_LAPTOPS.filter(function(l) { return l.locationId === loc; });
+      if (all || !this.joinee.premiumOnly || this.exception) return atLocation;
+      var sel = this.laptopId;
+      return atLocation.filter(function(l) { return l.premium || String(l.id) === sel; });
+    },
+    // Location-scoped headphones.
+    headphoneChoices() {
+      if (!this.joinee) return [];
+      var loc = this.joinee.locationId;
+      return NJ_HEADPHONES.filter(function(h) { return h.locationId === loc; });
+    }
+  };
+}
+</script>
+
+    </div>
+  </main>
+</div>
+
+
+<!-- HAMS AI Assistant drawer -->
+<div id="hams-ai-backdrop" class="fixed inset-0 z-[170] hidden bg-black/50 backdrop-blur-sm"></div>
+<div id="hams-ai-panel" class="fixed inset-y-0 right-0 z-[180] w-full sm:w-[440px] hidden flex-col bg-hams-card border-l border-white/10 shadow-2xl">
+  <div class="flex items-center gap-3 px-5 py-4 border-b border-white/5 shrink-0">
+    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center text-white"><i data-lucide="sparkles" class="w-4 h-4"></i></span>
+    <div class="min-w-0">
+      <div class="font-heading font-semibold text-white text-sm">HAMS AI Assistant</div>
+      <div class="text-[11px] text-slate-500">Answers from your live data — markets, clients, software, spend &amp; more</div>
+    </div>
+    <button id="hams-ai-close" class="ml-auto p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+  </div>
+
+  <div id="hams-ai-messages" class="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-sm"></div>
+
+  <div id="hams-ai-suggestions" class="px-5 pb-2 shrink-0 flex flex-wrap gap-2">
+    <button data-ai-suggest="How many software products do we have for Athena in HMT2?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Software for Athena in HMT2</button>
+    <button data-ai-suggest="Which market has the highest number of licenses?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Top market by licenses</button>
+    <button data-ai-suggest="What are our estimated savings?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Estimated savings</button>
+    <button data-ai-suggest="What renews in the next 90 days?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Upcoming renewals</button>
+    <button data-ai-suggest="What can you do?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">What can you do?</button>
+  </div>
+
+  <div class="px-5 py-4 border-t border-white/5 shrink-0">
+    <form id="hams-ai-form" class="flex items-center gap-2">
+      <input id="hams-ai-input" type="text" maxlength="500" placeholder="Ask about markets, clients, software, spend…" autocomplete="off"
+             class="flex-1 px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm text-slate-200 focus:border-violet-500/60 outline-none">
+      <button type="submit" id="hams-ai-send" class="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-40"><i data-lucide="send" class="w-4 h-4"></i></button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  var AI_URL = "http://localhost:3000/assistant/query";
+  var panel = document.getElementById('hams-ai-panel');
+  var backdrop = document.getElementById('hams-ai-backdrop');
+  var messages = document.getElementById('hams-ai-messages');
+  var suggestions = document.getElementById('hams-ai-suggestions');
+  var input = document.getElementById('hams-ai-input');
+  var sendBtn = document.getElementById('hams-ai-send');
+  var esc = function(s) { return String(s).replace(/[&<>"]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+  var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+  function openPanel() {
+    panel.classList.remove('hidden'); panel.classList.add('flex');
+    backdrop.classList.remove('hidden');
+    if (!messages.children.length) {
+      addBubble('bot', '<p>Hi! I answer questions straight from your HAMS data. Try one of the suggestions below, or ask anything about markets, clients, software, licenses, spending or renewals.</p>');
+    }
+    setTimeout(function() { input.focus(); }, 50);
+  }
+  function closePanel() {
+    panel.classList.add('hidden'); panel.classList.remove('flex');
+    backdrop.classList.add('hidden');
+  }
+  document.getElementById('hams-ai-btn').addEventListener('click', openPanel);
+  document.getElementById('hams-ai-close').addEventListener('click', closePanel);
+  backdrop.addEventListener('click', closePanel);
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closePanel(); });
+
+  function addBubble(who, html) {
+    var wrap = document.createElement('div');
+    if (who === 'user') {
+      wrap.className = 'flex justify-end';
+      wrap.innerHTML = '<div class="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-br-sm bg-blue-600 text-white">' + html + '</div>';
+    } else {
+      wrap.className = 'flex justify-start';
+      wrap.innerHTML = '<div class="max-w-[95%] px-4 py-3 rounded-2xl rounded-bl-sm bg-white/5 border border-white/5 text-slate-200 space-y-3 overflow-hidden">' + html + '</div>';
+    }
+    messages.appendChild(wrap);
+    messages.scrollTop = messages.scrollHeight;
+    return wrap;
+  }
+
+  function renderAnswer(a) {
+    var html = '';
+    if (a.summary) html += '<p class="leading-relaxed">' + esc(a.summary) + '</p>';
+    if (a.metrics && a.metrics.length) {
+      html += '<div class="grid grid-cols-2 gap-2">' + a.metrics.map(function(m) {
+        return '<div class="px-3 py-2 rounded-xl bg-white/5 border border-white/5"><div class="text-[10px] uppercase tracking-wider text-slate-500">' + esc(m.label) + '</div><div class="text-sm font-semibold text-white">' + esc(m.value) + '</div></div>';
+      }).join('') + '</div>';
+    }
+    if (a.table && a.table.rows && a.table.rows.length) {
+      html += '<div class="overflow-x-auto rounded-xl border border-white/10"><table class="w-full text-xs"><thead><tr class="text-left text-slate-500 uppercase bg-white/5">' +
+        a.table.columns.map(function(c) { return '<th class="px-3 py-2 whitespace-nowrap">' + esc(c) + '</th>'; }).join('') +
+        '</tr></thead><tbody class="divide-y divide-white/5">' +
+        a.table.rows.slice(0, 15).map(function(r) {
+          return '<tr>' + r.map(function(c) { return '<td class="px-3 py-2 whitespace-nowrap text-slate-300">' + esc(c) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>';
+      if (a.table.rows.length > 15) html += '<p class="text-[11px] text-slate-500">Showing 15 of ' + a.table.rows.length + ' rows.</p>';
+    }
+    if (a.insights && a.insights.length) {
+      html += '<div class="space-y-1">' + a.insights.map(function(i) {
+        return '<p class="text-[12px] text-slate-400 flex gap-1.5"><span class="text-violet-400">◆</span><span>' + esc(i) + '</span></p>';
+      }).join('') + '</div>';
+    }
+    if (a.recommendations && a.recommendations.length) {
+      html += '<div class="space-y-1">' + a.recommendations.map(function(r) {
+        return '<p class="text-[12px] text-emerald-300/90 flex gap-1.5"><span>→</span><span>' + esc(r) + '</span></p>';
+      }).join('') + '</div>';
+    }
+    return html || '<p>I could not build an answer for that.</p>';
+  }
+
+  function send(question) {
+    question = (question || '').trim();
+    if (!question) return;
+    suggestions.classList.add('hidden');
+    addBubble('user', esc(question));
+    input.value = '';
+    sendBtn.disabled = true;
+    var typing = addBubble('bot', '<span class="inline-flex gap-1 items-center text-slate-400"><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce"></span><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style="animation-delay:.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style="animation-delay:.3s"></span></span>');
+    fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _csrf: csrf, question: question })
+    })
+      .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(function(a) { typing.remove(); addBubble('bot', renderAnswer(a)); })
+      .catch(function(err) { typing.remove(); addBubble('bot', '<p class="text-rose-300">Something went wrong (' + esc(err.message) + '). Please try again.</p>'); })
+      .finally(function() { sendBtn.disabled = false; input.focus(); });
+  }
+
+  document.getElementById('hams-ai-form').addEventListener('submit', function(e) { e.preventDefault(); send(input.value); });
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); send(input.value); }
+  });
+  suggestions.addEventListener('click', function(e) {
+    var b = e.target.closest('[data-ai-suggest]');
+    if (b) send(b.dataset.aiSuggest);
+  });
+})();
+</script>
+
+
+<!-- Global confirm modal -->
+<div id="hams-confirm-modal" class="fixed inset-0 z-[200] hidden items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-400 flex items-center justify-center"><i data-lucide="triangle-alert" class="w-5 h-5"></i></span>
+      <h3 class="font-heading font-semibold text-white">Confirm Action</h3>
+    </div>
+    <p id="hams-confirm-message" class="text-sm text-slate-400 mb-5"></p>
+    <div class="flex justify-end gap-2">
+      <button data-confirm-cancel class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300 hover:bg-white/10">Cancel</button>
+      <button data-confirm-ok class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-sm text-white font-medium">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('load', function() { if (window.lucide) lucide.createIcons(); });
+document.addEventListener('DOMContentLoaded', function() { if (window.lucide) lucide.createIcons(); });
+
+// Global confirm modal wiring (data-confirm on forms, data-confirm-click on buttons)
+(function() {
+  var modal = document.getElementById('hams-confirm-modal');
+  var msgEl = document.getElementById('hams-confirm-message');
+  var pending = null;
+  function show(message, onOk) {
+    msgEl.textContent = message;
+    pending = onOk;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  function hide() { modal.classList.add('hidden'); modal.classList.remove('flex'); pending = null; }
+  modal.querySelector('[data-confirm-cancel]').addEventListener('click', hide);
+  modal.querySelector('[data-confirm-ok]').addEventListener('click', function() { var fn = pending; hide(); if (fn) fn(); });
+  document.addEventListener('submit', function(e) {
+    var form = e.target.closest('form[data-confirm]');
+    if (form && !form.dataset.confirmed) {
+      e.preventDefault();
+      show(form.dataset.confirm, function() { form.dataset.confirmed = '1'; form.submit(); });
+    }
+  }, true);
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-confirm-click]');
+    if (btn && !btn.dataset.confirmed) {
+      e.preventDefault();
+      show(btn.dataset.confirmClick, function() {
+        btn.dataset.confirmed = '1';
+        if (btn.formAction && btn.form) { btn.form.action = btn.formAction; btn.form.submit(); }
+        else btn.click();
+      });
+    }
+  }, true);
+})();
+
+// Barcode scan helper (BarcodeDetector with prompt fallback)
+document.addEventListener('click', async function(e) {
+  var btn = e.target.closest('[data-barcode-scan]');
+  if (!btn) return;
+  var fieldName = btn.dataset.barcodeScan;
+  var input = document.querySelector('[name="' + fieldName + '"], [data-barcode-target="' + fieldName + '"]');
+  if (!input) return;
+  var code = window.prompt('Scan or enter barcode value:');
+  if (code) { input.value = code; input.dispatchEvent(new Event('input')); }
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(function() {});
+  });
+}
+</script>
+</body>
+</html>

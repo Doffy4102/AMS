@@ -1,0 +1,159 @@
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Dashboard</h1>
+    <p class="text-sm text-slate-500 mt-1">Enterprise asset intelligence overview</p>
+  </div>
+  <div class="flex items-center gap-2 px-4 py-2 rounded-2xl <%= dashboard.health > 80 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400' %> text-xs font-semibold">
+    <span class="w-2 h-2 rounded-full <%= dashboard.health > 80 ? 'bg-emerald-400' : 'bg-amber-400' %> animate-pulse"></span>
+    <%= dashboard.health %>% HEALTHY
+  </div>
+</div>
+
+<% const cards = [
+  ['Total Assets', dashboard.assets, 'laptop', 'blue'],
+  ['Active Users', dashboard.users, 'user-check', 'indigo'],
+  ['Assigned Assets', dashboard.assigned, 'send', 'emerald'],
+  ['Warranties Expiring', dashboard.warranty_expiring, 'shield-alert', 'rose']
+]; %>
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+  <% for (const [label, value, icon, color] of cards) { %>
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6 flex items-center gap-4">
+    <span class="w-12 h-12 rounded-2xl bg-<%= color %>-500/15 text-<%= color %>-400 flex items-center justify-center"><i data-lucide="<%= icon %>" class="w-6 h-6"></i></span>
+    <div>
+      <div class="text-2xl font-bold text-white font-heading"><%= value %></div>
+      <div class="text-xs text-slate-500"><%= label %></div>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+  <div class="lg:col-span-2 bg-hams-card border border-white/5 rounded-3xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="font-heading font-semibold text-white">Acquisition Velocity</h2>
+        <p class="text-xs text-slate-500">New Assets per Month</p>
+      </div>
+      <span class="text-xs px-3 py-1 rounded-full bg-blue-500/10 text-blue-400">+<%= dashboard.recent.length %> Events</span>
+    </div>
+    <div id="trendChart"></div>
+  </div>
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <h2 class="font-heading font-semibold text-white mb-1">System Resilience</h2>
+    <p class="text-xs text-slate-500 mb-2">Serviceability Index</p>
+    <div id="healthGauge"></div>
+    <div class="grid grid-cols-3 gap-2 text-center text-xs mt-2">
+      <div><div class="font-bold text-white"><%= dashboard.assigned %></div><div class="text-slate-500">Deployed</div></div>
+      <div><div class="font-bold text-white"><%= dashboard.assets - dashboard.assigned %></div><div class="text-slate-500">Stock</div></div>
+      <div><div class="font-bold text-rose-400"><%= dashboard.repair %></div><div class="text-slate-500">Repair</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <h2 class="font-heading font-semibold text-white mb-4">By Category</h2>
+    <div id="categoryChart"></div>
+  </div>
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <h2 class="font-heading font-semibold text-white mb-4">By Department</h2>
+    <div id="deptChart"></div>
+  </div>
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <h2 class="font-heading font-semibold text-white mb-4">Asset Lifecycle States</h2>
+    <div id="statusChart"></div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2 bg-hams-card border border-white/5 rounded-3xl p-6">
+    <h2 class="font-heading font-semibold text-white mb-4">Inventory Stock Levels</h2>
+    <div id="stockChart"></div>
+  </div>
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-heading font-semibold text-white">Security &amp; Audit</h2>
+      <a href="<%= hams_url('/audit') %>" class="text-xs text-blue-400 hover:underline">Logs</a>
+    </div>
+    <div class="space-y-4">
+      <% for (const item of dashboard.recent) { %>
+      <div class="flex gap-3">
+        <span class="w-8 h-8 shrink-0 rounded-lg bg-white/5 text-slate-400 flex items-center justify-center"><i data-lucide="activity" class="w-4 h-4"></i></span>
+        <div class="min-w-0">
+          <div class="text-xs font-semibold text-white truncate"><%= item.action %></div>
+          <div class="text-xs text-slate-500 truncate"><%= item.description %></div>
+          <div class="text-[10px] text-slate-600 mt-0.5"><%= formatDateTime(item.created_at) %></div>
+        </div>
+      </div>
+      <% } %>
+      <% if (!dashboard.recent.length) { %><p class="text-xs text-slate-500">No recent activity.</p><% } %>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var palette = ['#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4'];
+  var base = { chart: { toolbar: { show: false }, background: 'transparent' }, theme: { mode: document.documentElement.classList.contains('light') ? 'light' : 'dark' }, grid: { borderColor: 'rgba(148,163,184,0.1)' } };
+  var trend = <%- JSON.stringify(dashboard.trend) %>;
+  var byCategory = <%- JSON.stringify(dashboard.by_category) %>;
+  var byDept = <%- JSON.stringify(dashboard.by_department) %>;
+  var byStatus = <%- JSON.stringify(dashboard.by_status) %>;
+  var stock = <%- JSON.stringify(dashboard.inventory_stock) %>;
+
+  new ApexCharts(document.querySelector('#trendChart'), Object.assign({}, base, {
+    chart: Object.assign({}, base.chart, { type: 'area', height: 260 }),
+    series: [{ name: 'New Assets', data: trend.map(function(r) { return r.total; }) }],
+    xaxis: { categories: trend.map(function(r) { return r.month; }) },
+    stroke: { curve: 'smooth', width: 3, colors: ['#3b82f6'] },
+    fill: { type: 'gradient', gradient: { shadeIntensity: 0.6, opacityFrom: 0.4, opacityTo: 0.05 } },
+    dataLabels: { enabled: false }, colors: ['#3b82f6']
+  })).render();
+
+  new ApexCharts(document.querySelector('#healthGauge'), Object.assign({}, base, {
+    chart: Object.assign({}, base.chart, { type: 'radialBar', height: 220 }),
+    series: [<%= dashboard.health %>],
+    plotOptions: { radialBar: { hollow: { size: '60%' }, dataLabels: { value: { fontSize: '24px', color: undefined } } } },
+    labels: ['Health'],
+    fill: { type: 'gradient', gradient: { gradientToColors: ['#22c55e'] } },
+    colors: ['#3b82f6']
+  })).render();
+
+  new ApexCharts(document.querySelector('#categoryChart'), Object.assign({}, base, {
+    chart: Object.assign({}, base.chart, { type: 'bar', height: 240 }),
+    series: [{ name: 'Assets', data: byCategory.map(function(r) { return r.total; }) }],
+    xaxis: { categories: byCategory.map(function(r) { return r.label; }) },
+    plotOptions: { bar: { horizontal: true, distributed: true, borderRadius: 6 } },
+    legend: { show: false }, dataLabels: { enabled: false }, colors: palette
+  })).render();
+
+  new ApexCharts(document.querySelector('#deptChart'), Object.assign({}, base, {
+    chart: Object.assign({}, base.chart, { type: 'bar', height: 240 }),
+    series: [{ name: 'Assets', data: byDept.map(function(r) { return r.total; }) }],
+    xaxis: { categories: byDept.map(function(r) { return r.label; }) },
+    plotOptions: { bar: { distributed: true, borderRadius: 6, columnWidth: '55%' } },
+    legend: { show: false }, dataLabels: { enabled: false }, colors: palette
+  })).render();
+
+  new ApexCharts(document.querySelector('#statusChart'), Object.assign({}, base, {
+    chart: Object.assign({}, base.chart, { type: 'donut', height: 260 }),
+    series: byStatus.map(function(r) { return r.total; }),
+    labels: byStatus.map(function(r) { return r.label; }),
+    colors: ['#22c55e', '#3b82f6', '#f59e0b', '#f97316', '#ef4444', '#64748b', '#71717a'],
+    legend: { position: 'bottom' },
+    plotOptions: { pie: { donut: { labels: { show: true, total: { show: true } } } } }
+  })).render();
+
+  var stockKeys = Object.keys(stock);
+  new ApexCharts(document.querySelector('#stockChart'), Object.assign({}, base, {
+    chart: Object.assign({}, base.chart, { type: 'bar', height: 260 }),
+    series: [
+      { name: 'Available', data: stockKeys.map(function(k) { return stock[k].available; }) },
+      { name: 'Total', data: stockKeys.map(function(k) { return stock[k].total; }) }
+    ],
+    xaxis: { categories: stockKeys },
+    plotOptions: { bar: { borderRadius: 6, columnWidth: '45%' } },
+    dataLabels: { enabled: false }, colors: ['#22c55e', '#3b82f6'], legend: { position: 'top' }
+  })).render();
+});
+</script>

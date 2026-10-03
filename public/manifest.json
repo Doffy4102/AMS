@@ -1,0 +1,10 @@
+{
+  "name": "HAMS Enterprise",
+  "short_name": "HAMS",
+  "description": "Enterprise Hardware Asset Management Solution",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0b",
+  "theme_color": "#4f46e5",
+  "icons": []
+}

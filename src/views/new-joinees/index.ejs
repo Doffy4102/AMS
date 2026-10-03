@@ -1,0 +1,161 @@
+<div x-data="njSection()">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">New Joinees</h1>
+    <p class="text-sm text-slate-500 mt-1">Onboarding asset allocation — the agent drafts a laptop &amp; headphones from the joinee's location per designation; nothing is assigned until an engineer approves</p>
+  </div>
+  <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 text-xs font-semibold flex items-center gap-1.5"><i data-lucide="bot" class="w-3.5 h-3.5"></i>Auto-allocation agent</span>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[1100px] text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-4">Name</th><th class="px-6 py-4">Employee ID</th><th class="px-6 py-4">Location</th><th class="px-6 py-4">Employment</th><th class="px-6 py-4">Date of Joining</th><th class="px-6 py-4">Designation</th><th class="px-6 py-4">Drafted Allocation</th><th class="px-6 py-4">Status</th><th class="px-6 py-4 text-right">Actions</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const j of newJoinees) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <img src="https://ui-avatars.com/api/?name=<%= encodeURIComponent(j.name) %>&background=6366f1&color=fff" class="w-9 h-9 rounded-xl" alt="">
+              <span class="font-medium text-white"><%= j.name %></span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-slate-400"><%= j.employee_id %></td>
+          <td class="px-6 py-4 text-slate-400"><%= j.location_name || 'Global' %></td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg text-xs <%= j.employment_status === 'Contractor' ? 'bg-purple-500/10 text-purple-400' : 'bg-sky-500/10 text-sky-400' %>"><%= j.employment_status %></span></td>
+          <td class="px-6 py-4 text-slate-400"><%= formatDate(j.date_of_joining) %></td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs"><%= j.designation %></span></td>
+          <td class="px-6 py-4">
+            <% if (j.laptop_model) { %>
+            <div class="text-slate-300 flex items-center gap-1.5"><i data-lucide="laptop" class="w-3.5 h-3.5 text-slate-500"></i><%= j.laptop_model %></div>
+            <% } else { %>
+            <div class="text-amber-400/90 flex items-center gap-1.5"><i data-lucide="laptop" class="w-3.5 h-3.5"></i>Laptop not available at <%= j.location_name || 'this location' %></div>
+            <% } %>
+            <% if (j.headphone_name) { %>
+            <div class="text-slate-400 text-xs mt-1 flex items-center gap-1.5"><i data-lucide="headphones" class="w-3.5 h-3.5 text-slate-500"></i><%= j.headphone_name %></div>
+            <% } else { %>
+            <div class="text-amber-400/90 text-xs mt-1 flex items-center gap-1.5"><i data-lucide="headphones" class="w-3.5 h-3.5"></i>Headphones not available at <%= j.location_name || 'this location' %></div>
+            <% } %>
+            <% if (j.draft_note) { %><div class="text-[11px] text-slate-500 mt-1"><%= j.draft_note %></div><% } %>
+          </td>
+          <td class="px-6 py-4">
+            <% if (j.allocation_status === 'allocated') { %>
+            <span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-semibold">ALLOCATED</span>
+            <% if (j.allocated_by_name) { %><div class="text-[11px] text-slate-500 mt-1">by <%= j.allocated_by_name %></div><% } %>
+            <% } else { %>
+            <span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-semibold">AWAITING APPROVAL</span>
+            <% } %>
+          </td>
+          <td class="px-6 py-4">
+            <% if (j.allocation_status !== 'allocated') { %>
+            <div class="flex justify-end gap-2">
+              <button @click="openEdit(NJ_DATA[<%= j.id %>])" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i>Edit</button>
+              <form method="POST" action="<%= hams_url('/new-joinees/' + j.id + '/allocate') %>" onsubmit="return confirm('Allocate the drafted laptop and headphones to <%= j.name %>? This finalizes the assignment.')">
+                <%- csrf_field %>
+                <button type="submit" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed" <%= (!j.draft_laptop_asset_id || !j.draft_headphone_accessory_id) ? 'disabled' : '' %>><i data-lucide="check" class="w-3.5 h-3.5"></i>Allocate</button>
+              </form>
+            </div>
+            <% } else { %>
+            <div class="text-right text-xs text-slate-500"><%= formatDate(j.allocated_at) %></div>
+            <% } %>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!newJoinees.length) { %><tr><td colspan="9" class="px-6 py-12 text-center text-slate-500">No new joinees.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit allocation modal (location-scoped dropdowns) -->
+<div x-show="editOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="editOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-lg">
+    <h3 class="font-heading font-semibold text-white mb-1">Edit Allocation</h3>
+    <p class="text-xs text-slate-500 mb-4" x-text="joinee ? joinee.name + ' · ' + joinee.designation + ' · ' + joinee.locationName + ' — agent recommendation: ' + joinee.ruleLabel : ''"></p>
+    <form method="POST" :action="joinee ? njUrl + joinee.id + '/allocation' : '#'" class="space-y-4">
+      <%- csrf_field %>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Laptop * <span class="text-slate-500 font-normal" x-text="joinee ? '(available at ' + joinee.locationName + ')' : ''"></span></label>
+        <select name="laptop_asset_id" x-model="laptopId" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <template x-if="!laptopChoices().length"><option value="" disabled selected>Asset not available</option></template>
+          <template x-for="l in laptopChoices()" :key="l.id">
+            <option :value="String(l.id)" x-text="l.model + ' — ' + l.tag + (l.premium ? ' · Premium' : '')"></option>
+          </template>
+        </select>
+        <label x-show="joinee && joinee.premiumOnly && laptopChoices(true).length" class="mt-2 flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+          <input type="checkbox" x-model="exception" class="rounded border-white/10 bg-hams-bg">
+          Exception — show all available laptops at this location (not only premium)
+        </label>
+        <p x-show="joinee && joinee.premiumOnly && !exception && laptopChoices().length" class="mt-1 text-[11px] text-slate-500">Showing premium laptops only (designation-based). Use the exception toggle to see every laptop at this location.</p>
+        <p x-show="joinee && !laptopChoices(true).length" class="mt-1 text-[11px] text-amber-400/90">No laptops are currently available at this joinee's location.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Headphones * <span class="text-slate-500 font-normal" x-text="joinee ? '(available at ' + joinee.locationName + ')' : ''"></span></label>
+        <select name="headphone_accessory_id" x-model="headphoneId" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <template x-if="!headphoneChoices().length"><option value="" disabled selected>Asset not available</option></template>
+          <template x-for="h in headphoneChoices()" :key="h.id">
+            <option :value="String(h.id)" x-text="h.name + (h.model ? ' — ' + h.model : '') + ' · ' + h.available + ' in stock'"></option>
+          </template>
+        </select>
+        <p x-show="joinee && !headphoneChoices().length" class="mt-1 text-[11px] text-amber-400/90">No headphones are currently available at this joinee's location.</p>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" @click="editOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" :disabled="!laptopChoices().length || !headphoneChoices().length" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed">Save Draft</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+
+<script>
+var NJ_LAPTOPS = <%- JSON.stringify(allocationOptions.laptops) %>;
+var NJ_HEADPHONES = <%- JSON.stringify(allocationOptions.headphones) %>;
+var NJ_DATA = <%- JSON.stringify(Object.fromEntries(newJoinees.map(j => [j.id, {
+  id: j.id, name: j.name, designation: j.designation,
+  locationId: j.location_id, locationName: j.location_name || 'this location',
+  premiumOnly: j.rule.premiumOnly, ruleLabel: j.rule.label,
+  laptopId: j.draft_laptop_asset_id, headphoneId: j.draft_headphone_accessory_id
+}]))) %>;
+function njSection() {
+  return {
+    editOpen: false,
+    joinee: null,
+    laptopId: '',
+    headphoneId: '',
+    exception: false,
+    njUrl: <%- JSON.stringify(hams_url('/new-joinees/')) %>,
+    openEdit(j) {
+      this.joinee = j;
+      this.exception = false;
+      var laptops = this.laptopChoices();
+      var headphones = this.headphoneChoices();
+      this.laptopId = j.laptopId ? String(j.laptopId) : (laptops[0] ? String(laptops[0].id) : '');
+      this.headphoneId = j.headphoneId ? String(j.headphoneId) : (headphones[0] ? String(headphones[0].id) : '');
+      this.editOpen = true;
+    },
+    // Location-scoped laptops: only assets at the joinee's location are ever
+    // offered. On top of that, premium designations see premium machines only
+    // until the exception toggle widens to all laptops at that location.
+    // Pass all=true to bypass the premium filter (used to decide whether the
+    // exception toggle is worth showing).
+    laptopChoices(all) {
+      if (!this.joinee) return [];
+      var loc = this.joinee.locationId;
+      var atLocation = NJ_LAPTOPS.filter(function(l) { return l.locationId === loc; });
+      if (all || !this.joinee.premiumOnly || this.exception) return atLocation;
+      var sel = this.laptopId;
+      return atLocation.filter(function(l) { return l.premium || String(l.id) === sel; });
+    },
+    // Location-scoped headphones.
+    headphoneChoices() {
+      if (!this.joinee) return [];
+      var loc = this.joinee.locationId;
+      return NJ_HEADPHONES.filter(function(h) { return h.locationId === loc; });
+    }
+  };
+}
+</script>

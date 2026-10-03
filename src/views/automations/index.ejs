@@ -1,0 +1,87 @@
+<div x-data="{ addOpen: false, conditions: [], actions: [] }">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Automation Engine</h1>
+    <p class="text-sm text-slate-500 mt-1">Event-driven rules with conditions and actions</p>
+  </div>
+  <button @click="addOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>New Rule</button>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+      <th class="px-6 py-4">Rule Name</th><th class="px-6 py-4">Trigger</th><th class="px-6 py-4">Status</th><th class="px-6 py-4 text-right">Actions</th>
+    </tr></thead>
+    <tbody class="divide-y divide-white/5">
+      <% for (const r of rules) { %>
+      <tr class="hover:bg-white/[.02]">
+        <td class="px-6 py-4 text-white font-medium"><%= r.name %></td>
+        <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-mono"><%= r.event_trigger %></span></td>
+        <td class="px-6 py-4"><span class="px-2 py-0.5 rounded text-xs <%= r.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-500' %>"><%= r.is_active ? 'Active' : 'Disabled' %></span></td>
+        <td class="px-6 py-4 text-right">
+          <form method="POST" action="<%= hams_url('/settings/automations/' + r.id + '/delete') %>" data-confirm="Delete this automation rule?">
+            <%- csrf_field %><button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </form>
+        </td>
+      </tr>
+      <% } %>
+      <% if (!rules.length) { %><tr><td colspan="4" class="px-6 py-12 text-center text-slate-500">No automation rules.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<div x-show="addOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-lg">
+    <h3 class="font-heading font-semibold text-white mb-4">New Automation Rule</h3>
+    <form method="POST" action="<%= hams_url('/settings/automations') %>" class="space-y-4">
+      <%- csrf_field %>
+      <div><label class="block text-xs text-slate-400 mb-1">Rule Name</label>
+        <input type="text" name="name" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs text-slate-400 mb-1">Event Trigger</label>
+        <select name="event_trigger" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <% for (const ev of ['asset.created', 'asset.updated', 'asset.deleted', 'asset.checked_out', 'asset.checked_in', 'request.created', 'request.approved', 'low_stock']) { %>
+          <option value="<%= ev %>"><%= ev %></option>
+          <% } %>
+        </select></div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-2">Conditions (all must match)</label>
+        <template x-for="(c, i) in conditions" :key="i">
+          <div class="flex gap-2 mb-2">
+            <input type="text" name="condition_field[]" x-model="c.field" placeholder="field" class="flex-1 px-3 py-2 rounded-xl bg-hams-bg border border-white/10 text-xs font-mono">
+            <select name="condition_operator[]" x-model="c.operator" class="w-24 px-2 py-2 rounded-xl bg-hams-bg border border-white/10 text-xs">
+              <option value="=">=</option><option value="!=">!=</option><option value=">">&gt;</option><option value="<">&lt;</option><option value="contains">contains</option>
+            </select>
+            <input type="text" name="condition_value[]" x-model="c.value" placeholder="value" class="flex-1 px-3 py-2 rounded-xl bg-hams-bg border border-white/10 text-xs">
+            <button type="button" @click="conditions.splice(i, 1)" class="text-rose-400 px-1">&times;</button>
+          </div>
+        </template>
+        <button type="button" @click="conditions.push({ field: '', operator: '=', value: '' })" class="text-xs text-blue-400 hover:underline">+ Add condition</button>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-2">Actions</label>
+        <template x-for="(a, i) in actions" :key="i">
+          <div class="space-y-2 mb-3 p-3 rounded-xl bg-white/[.02]">
+            <select name="action_type[]" x-model="a.type" class="w-full px-3 py-2 rounded-xl bg-hams-bg border border-white/10 text-xs">
+              <option value="log">Log Message</option><option value="webhook">Webhook</option><option value="email">Email</option>
+            </select>
+            <input type="text" name="action_config_msg[]" x-show="a.type === 'log'" x-model="a.msg" placeholder="Log message" class="w-full px-3 py-2 rounded-xl bg-hams-bg border border-white/10 text-xs">
+            <input type="text" name="action_config_url[]" x-show="a.type === 'webhook'" x-cloak x-model="a.url" placeholder="https://webhook.example.com" class="w-full px-3 py-2 rounded-xl bg-hams-bg border border-white/10 text-xs">
+            <div x-show="a.type === 'email'" x-cloak class="space-y-2">
+              <input type="text" name="action_config_to[]" x-model="a.to" placeholder="recipient@company.com" class="w-full px-3 py-2 rounded-xl bg-hams-bg border border-white/10 text-xs">
+              <input type="text" name="action_config_subject[]" x-model="a.subject" placeholder="Subject" class="w-full px-3 py-2 rounded-xl bg-hams-bg border border-white/10 text-xs">
+            </div>
+            <button type="button" @click="actions.splice(i, 1)" class="text-xs text-rose-400 hover:underline">Remove action</button>
+          </div>
+        </template>
+        <button type="button" @click="actions.push({ type: 'log', msg: '', url: '', to: '', subject: '' })" class="text-xs text-blue-400 hover:underline">+ Add action</button>
+      </div>
+      <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="is_active" value="1" checked class="rounded">Active</label>
+      <div class="flex justify-end gap-2">
+        <button type="button" @click="addOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create Rule</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>

@@ -1,0 +1,21 @@
+﻿<% const sv = (k, d = '') => (settings[k] ? (settings[k].value ?? d) : d); %>
+<div class="flex flex-col lg:flex-row gap-8">
+  <%- await include('_sidebar', { active_tab }) %>
+  <div class="flex-1 max-w-2xl">
+    <h1 class="font-heading text-2xl font-bold text-white mb-1">Organization Settings</h1>
+    <p class="text-sm text-slate-500 mb-6">Regional and asset defaults</p>
+    <form method="POST" action="<%= hams_url('/settings/update') %>" class="bg-hams-card border border-white/5 rounded-3xl p-6 space-y-4">
+      <%- csrf_field %>
+      <input type="hidden" name="group" value="organization">
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Timezone</label>
+        <input type="text" name="timezone" value="<%= sv('timezone', 'UTC') %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Currency</label>
+        <input type="text" name="currency" value="<%= sv('currency', 'USD') %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Asset Tag Prefix</label>
+        <input type="text" name="asset_prefix" value="<%= sv('asset_prefix', 'HAMS-') %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Default Warranty (months)</label>
+        <input type="number" name="default_warranty" value="<%= sv('default_warranty', '36') %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Save Settings</button>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,61 @@
+<div class="flex flex-col lg:flex-row gap-8">
+  <%- await include('_sidebar', { active_tab }) %>
+  <div class="flex-1 max-w-4xl">
+    <div class="flex items-center gap-3 mb-6">
+      <a href="<%= hams_url('/settings/roles') %>" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+      <div>
+        <h1 class="font-heading text-2xl font-bold text-white"><%= role.display_name || role.name %></h1>
+        <p class="text-sm text-slate-500 font-mono"><%= role.name %> · level <%= role.level %></p>
+      </div>
+    </div>
+
+    <form method="POST" action="<%= hams_url('/settings/roles/' + role.id + '/update') %>" class="space-y-6">
+      <%- csrf_field %>
+      <div class="bg-hams-card border border-white/5 rounded-3xl p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Display Name *</label>
+          <input type="text" name="display_name" required value="<%= role.display_name || '' %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Role Name *</label>
+          <input type="text" name="name" required value="<%= role.name %>" <%= role.name === 'super_admin' ? 'readonly' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Level</label>
+          <input type="number" name="level" min="0" max="100" value="<%= role.level %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Description</label>
+          <input type="text" name="description" value="<%= role.description || '' %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      </div>
+
+      <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+        <h2 class="font-heading font-semibold text-white mb-4">Permission Matrix</h2>
+        <% for (const [groupLabel, perms] of Object.entries(permissions)) { %>
+        <div class="mb-5">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2"><%= groupLabel %></div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            <% for (const p of perms) { %>
+            <label class="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[.02] hover:bg-white/5 text-sm text-slate-300">
+              <input type="checkbox" name="permissions[]" value="<%= p.id %>" <%= role.permissions.includes(parseInt(p.id, 10)) ? 'checked' : '' %> class="rounded">
+              <span class="text-xs"><%= p.action %></span>
+            </label>
+            <% } %>
+          </div>
+        </div>
+        <% } %>
+      </div>
+
+      <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+        <h2 class="font-heading font-semibold text-white mb-1">Location Scopes</h2>
+        <p class="text-xs text-slate-500 mb-4">No selection = global access to all locations.</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <% for (const l of locations) { %>
+          <label class="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[.02] text-sm text-slate-300">
+            <input type="checkbox" name="location_ids[]" value="<%= l.id %>" <%= role.location_ids.includes(parseInt(l.id, 10)) ? 'checked' : '' %> class="rounded"><%= l.name %>
+          </label>
+          <% } %>
+          <% if (!locations.length) { %><p class="text-xs text-slate-500">No locations defined.</p><% } %>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <a href="<%= hams_url('/settings/roles') %>" class="px-5 py-2.5 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</a>
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm text-white font-medium">Save Role</button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,99 @@
+<div class="flex flex-col lg:flex-row gap-8" x-data="{ addRoleOpen: false, addPermissionOpen: false }">
+  <%- await include('_sidebar', { active_tab }) %>
+  <div class="flex-1">
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 class="font-heading text-2xl font-bold text-white mb-1">Roles &amp; Permissions</h1>
+        <p class="text-sm text-slate-500">RBAC roles with granular permission and location scoping</p>
+      </div>
+      <div class="flex gap-2">
+        <button @click="addPermissionOpen = true" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">Create Permission</button>
+        <button @click="addRoleOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>Create Role</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <% for (const r of roles) { %>
+      <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+        <div class="flex items-start justify-between mb-2">
+          <div>
+            <div class="font-semibold text-white"><%= r.display_name || r.name %></div>
+            <div class="text-xs font-mono text-slate-600"><%= r.name %></div>
+          </div>
+          <span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-semibold">Level <%= r.level %></span>
+        </div>
+        <p class="text-xs text-slate-500 mb-4"><%= r.description || 'No description.' %></p>
+        <div class="flex items-center gap-4 text-xs text-slate-500 mb-4">
+          <span class="flex items-center gap-1.5"><i data-lucide="users" class="w-3.5 h-3.5"></i><%= r.users_count %> users</span>
+          <span class="flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i><%= r.permissions_count %> permissions</span>
+        </div>
+        <div class="flex gap-2">
+          <a href="<%= hams_url('/settings/roles/' + r.id) %>" class="px-4 py-2 rounded-xl bg-blue-600/15 text-blue-400 hover:bg-blue-600/25 text-xs font-medium">Manage Matrix</a>
+          <% if (r.name !== 'super_admin') { %>
+          <form method="POST" action="<%= hams_url('/settings/roles/' + r.id + '/delete') %>" data-confirm="Delete role <%= e(r.display_name || r.name) %>?">
+            <%- csrf_field %>
+            <button class="px-4 py-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-medium">Delete</button>
+          </form>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Create Role modal -->
+  <div x-show="addRoleOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addRoleOpen = false"></div>
+    <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+      <h3 class="font-heading font-semibold text-white mb-4">Create Role</h3>
+      <form method="POST" action="<%= hams_url('/settings/roles') %>" class="space-y-4">
+        <%- csrf_field %>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Display Name *</label>
+          <input type="text" name="display_name" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Role Name (slug) *</label>
+          <input type="text" name="name" required placeholder="e.g. helpdesk_agent" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Description</label>
+          <textarea name="description" rows="2" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Level (0–100)</label>
+          <input type="number" name="level" min="0" max="100" value="0" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Location Scopes (empty = global)</label>
+          <div class="max-h-28 overflow-y-auto space-y-1 border border-white/5 rounded-xl p-3">
+            <% for (const l of locations) { %>
+            <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="location_ids[]" value="<%= l.id %>" class="rounded"><%= l.name %></label>
+            <% } %>
+            <% if (!locations.length) { %><p class="text-xs text-slate-500">No locations defined.</p><% } %>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500">Permissions can be granted from the role's matrix page after creation.</p>
+        <div class="flex justify-end gap-2">
+          <button type="button" @click="addRoleOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create Role</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Permission modal -->
+  <div x-show="addPermissionOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addPermissionOpen = false"></div>
+    <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+      <h3 class="font-heading font-semibold text-white mb-4">Create Permission</h3>
+      <form method="POST" action="<%= hams_url('/settings/permissions') %>" class="space-y-4">
+        <%- csrf_field %>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Module</label>
+          <select name="module_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+            <option value="">System (no module)</option>
+            <% for (const m of modules) { %><option value="<%= m.id %>"><%= m.label %></option><% } %>
+          </select></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Action *</label>
+          <input type="text" name="action" required placeholder="e.g. export" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"></div>
+        <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Name (auto if blank)</label>
+          <input type="text" name="name" placeholder="module.action" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"></div>
+        <div class="flex justify-end gap-2">
+          <button type="button" @click="addPermissionOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

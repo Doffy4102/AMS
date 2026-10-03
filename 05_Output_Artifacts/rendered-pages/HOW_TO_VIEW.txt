@@ -1,0 +1,7 @@
+These are the actual server-rendered pages captured from the running
+application (authenticated session, live data). Open any .html file in a
+browser to inspect the exact markup and data the app produced.
+Styling/charts load from CDN, so an internet connection shows them fully
+styled; the data content is embedded in the files regardless.
+Interactive screenshots were not capturable in the automated environment,
+so these full-page captures + run-evidence.txt serve as execution proof.

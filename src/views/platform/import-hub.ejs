@@ -1,0 +1,40 @@
+<div x-data="{ selectedModule: '', uploadMode: 'file' }">
+<div class="mb-8">
+  <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Import Center</h1>
+  <p class="text-sm text-slate-500 mt-1">Bulk CSV import with validation preview — <a href="<%= hams_url('/import/history') %>" class="text-blue-400 hover:underline">view history</a></p>
+</div>
+
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+  <% for (const m of modules) { %>
+  <button @click="selectedModule = '<%= m.key %>'"
+          :class="selectedModule === '<%= m.key %>' ? 'border-blue-500/50 bg-blue-500/5' : 'border-white/5'"
+          class="bg-hams-card border rounded-2xl p-4 text-left hover:border-blue-500/30">
+    <i data-lucide="<%= m.icon %>" class="w-5 h-5 text-blue-400 mb-2"></i>
+    <div class="text-sm font-medium text-white"><%= m.label %></div>
+    <div class="text-xs text-slate-500"><%= m.count %> records</div>
+  </button>
+  <% } %>
+</div>
+
+<div x-show="selectedModule" x-cloak class="bg-hams-card border border-white/5 rounded-3xl p-6 max-w-2xl">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="font-heading font-semibold text-white">Upload CSV for <span class="text-blue-400" x-text="selectedModule"></span></h2>
+    <a :href="'<%= hams_url('/import/template') %>/' + selectedModule" class="text-xs text-blue-400 hover:underline">Download template</a>
+  </div>
+  <form method="POST" action="<%= hams_url('/import/preview') %>" enctype="multipart/form-data" class="space-y-4">
+    <%- csrf_field %>
+    <input type="hidden" name="module" :value="selectedModule">
+    <div class="flex gap-2">
+      <button type="button" @click="uploadMode = 'file'" :class="uploadMode === 'file' ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400'" class="px-4 py-2 rounded-xl text-sm">Upload File</button>
+      <button type="button" @click="uploadMode = 'paste'" :class="uploadMode === 'paste' ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400'" class="px-4 py-2 rounded-xl text-sm">Paste CSV</button>
+    </div>
+    <div x-show="uploadMode === 'file'">
+      <input type="file" name="csv_file" accept=".csv,.txt" class="w-full text-sm text-slate-400">
+    </div>
+    <div x-show="uploadMode === 'paste'" x-cloak>
+      <textarea name="csv_paste" rows="8" placeholder="header1,header2&#10;value1,value2" class="w-full px-4 py-3 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"></textarea>
+    </div>
+    <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Preview &amp; Validate</button>
+  </form>
+</div>
+</div>

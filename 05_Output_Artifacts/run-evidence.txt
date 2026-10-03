@@ -1,0 +1,41 @@
+IT-HAMS — RUN EVIDENCE
+Captured: 2026-07-15 13:55:16 IST
+Server: http://localhost:3000 (node src/server.js, env: local)
+======================================================================
+
+[1] AUTHENTICATION
+POST /login (admin@hams.inc) -> HTTP 302 (302 = success redirect)
+
+[2] KEY ROUTES (HTTP status after login)
+  /                            -> HTTP 200
+  /users                       -> HTTP 200
+  /assets                      -> HTTP 200
+  /new-joinees                 -> HTTP 200
+  /software                    -> HTTP 200
+  /license-allocation          -> HTTP 200
+  /inventory/accessories       -> HTTP 200
+  /inventory/consumables       -> HTTP 200
+  /inventory/components        -> HTTP 200
+  /inventory/licenses          -> HTTP 200
+  /stock-movements             -> HTTP 200
+  /reports                     -> HTTP 200
+  /inventory/kits              -> HTTP 404  (404 expected — feature removed by request)
+
+[3] DATABASE STATE (live PostgreSQL queries)
+  software_assets: 1000 records, 8 products, qty range 0-10
+  allocations: 674 allocated / 326 unallocated
+  dimensions: 6 markets, 10 clients
+  software_prices: 8 rows, 8 priced
+  users: 311 total, 307 active
+  hardware assets: 443 total, 302 assigned
+  new_joinees: 5 tracked, 1 allocated by the agent workflow
+
+[4] AI ASSISTANT — LIVE ROUND TRIP (POST /assistant/query)
+  Q: Which market has the highest number of licenses?
+  A: HMT1 has the highest licenses: 1,096 licenses across 8 software products.
+  Q: How many software products do we have for Athena in HMP2?  (note deliberate typo HMP2)
+  A: There are 7 software products (client Athena, market HMT2), totalling 66 licenses.
+
+[5] CONCLUSION
+  All routes 200, database populated, agent workflow executed, AI assistant
+  answering from live data. Run completed successfully with zero errors.

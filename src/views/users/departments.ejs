@@ -1,0 +1,106 @@
+<div x-data="{ addOpen: false, editOpen: false, editItem: {}, selected: [], selectAll: false }"
+     x-effect="if (selectAll) selected = <%- JSON.stringify(departments.map(d => String(d.id))) %>">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Departments</h1>
+    <p class="text-sm text-slate-500 mt-1">Organizational departments with managers and cost centers</p>
+  </div>
+  <button @click="addOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>Add Department</button>
+</div>
+
+<div x-show="selected.length > 0" x-cloak class="mb-4 flex items-center gap-3 bg-hams-card border border-rose-500/20 rounded-2xl px-5 py-3">
+  <span class="text-sm text-rose-400 font-medium" x-text="selected.length + ' selected'"></span>
+  <form method="POST" action="<%= hams_url('/inventory-setup/departments/bulk-delete') %>" data-confirm="Delete the selected departments?">
+    <%- csrf_field %>
+    <template x-for="id in selected" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
+    <button class="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 text-xs">Delete Selected</button>
+  </form>
+</div>
+
+<form method="GET" class="mb-4 max-w-sm relative">
+  <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+  <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="Search name or cost center..." class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-hams-card border border-white/10 text-sm">
+</form>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[800px] text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-4 w-10"><input type="checkbox" x-model="selectAll" class="rounded"></th>
+        <th class="px-6 py-4">Department</th><th class="px-6 py-4">Parent</th><th class="px-6 py-4">Manager</th><th class="px-6 py-4">Cost Center</th><th class="px-6 py-4">Users</th><th class="px-6 py-4 text-right">Actions</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const d of departments) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="<%= d.id %>" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4 text-white font-medium"><%= d.name %></td>
+          <td class="px-6 py-4 text-slate-400"><%= d.parent_name || '—' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= d.manager_name || '—' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= d.cost_center || '—' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= d.users_count %></td>
+          <td class="px-6 py-4">
+            <div class="flex justify-end gap-1">
+              <button @click='editItem = <%- JSON.stringify(d).replace(/'/g, "&#39;") %>; editOpen = true' class="p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+              <form method="POST" action="<%= hams_url('/inventory-setup/departments/' + d.id + '/delete') %>" data-confirm="Delete this department?">
+                <%- csrf_field %><button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!departments.length) { %><tr><td colspan="7" class="px-6 py-12 text-center text-slate-500">No departments.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <%- await include('../components/pagination', { paginator, baseUrl: hams_url('/inventory-setup/departments') + (filters.search ? '?search=' + encodeURIComponent(filters.search) : '') }) %>
+</div>
+
+<% const deptForm = (mode) => { %>
+  <div class="space-y-4">
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Name *</label>
+      <input type="text" name="name" required <%- mode === 'edit' ? 'x-model="editItem.name"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Parent Department</label>
+      <select name="parent_id" <%- mode === 'edit' ? 'x-model="editItem.parent_id"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">— None —</option>
+        <% for (const d of metadata.departments) { %><option value="<%= d.id %>"><%= d.name %></option><% } %>
+      </select></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Manager</label>
+      <select name="manager_id" <%- mode === 'edit' ? 'x-model="editItem.manager_id"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">— None —</option>
+        <% for (const m of metadata.managers) { %><option value="<%= m.id %>"><%= m.name %></option><% } %>
+      </select></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Cost Center</label>
+      <input type="text" name="cost_center" <%- mode === 'edit' ? 'x-model="editItem.cost_center"' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+  </div>
+<% }; %>
+
+<div x-show="addOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">Add Department</h3>
+    <form method="POST" action="<%= hams_url('/inventory-setup/departments') %>" class="space-y-4">
+      <%- csrf_field %>
+      <% deptForm('add') %>
+      <div class="flex justify-end gap-2">
+        <button type="button" @click="addOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div x-show="editOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="editOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">Edit Department</h3>
+    <form method="POST" :action="'<%= hams_url('/inventory-setup/departments') %>/' + editItem.id + '/update'" class="space-y-4">
+      <%- csrf_field %>
+      <% deptForm('edit') %>
+      <div class="flex justify-end gap-2">
+        <button type="button" @click="editOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>

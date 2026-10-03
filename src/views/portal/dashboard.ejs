@@ -1,0 +1,64 @@
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Employee Portal</h1>
+    <p class="text-sm text-slate-500 mt-1">Your assigned equipment and requests</p>
+  </div>
+  <a href="<%= hams_url('/portal/requests') %>" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>New Request</a>
+</div>
+
+<% const portalCards = [
+  ['Hardware Assets', counts.assets, 'laptop', 'blue'],
+  ['Accessories', counts.accessories, 'keyboard', 'emerald'],
+  ['Software Licenses', counts.licenses, 'key', 'indigo'],
+  ['Internal Parts', counts.components, 'cpu', 'amber']
+]; %>
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+  <% for (const [label, value, icon, color] of portalCards) { %>
+  <a href="<%= hams_url('/portal/my-assets') %>" class="bg-hams-card border border-white/5 rounded-3xl p-6 flex items-center gap-4 hover:border-<%= color %>-500/30">
+    <span class="w-12 h-12 rounded-2xl bg-<%= color %>-500/15 text-<%= color %>-400 flex items-center justify-center"><i data-lucide="<%= icon %>" class="w-6 h-6"></i></span>
+    <div>
+      <div class="text-2xl font-bold text-white font-heading"><%= value %></div>
+      <div class="text-xs text-slate-500"><%= label %></div>
+    </div>
+  </a>
+  <% } %>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <h2 class="font-heading font-semibold text-white mb-4">My Hardware</h2>
+    <div class="space-y-3">
+      <% for (const a of assets) { %>
+      <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/[.02]">
+        <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+        <div class="min-w-0">
+          <div class="text-sm font-medium text-white truncate"><%= a.name %></div>
+          <div class="text-xs text-slate-500 font-mono"><%= a.asset_tag %><%= a.model_name ? ' · ' + a.model_name : '' %></div>
+        </div>
+      </div>
+      <% } %>
+      <% if (!assets.length) { %>
+      <div class="text-center py-10"><i data-lucide="laptop" class="w-8 h-8 mx-auto text-slate-700 mb-2"></i><p class="text-sm text-slate-500">No hardware assigned to you yet.</p></div>
+      <% } %>
+    </div>
+  </div>
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <h2 class="font-heading font-semibold text-white mb-4">Recent Requests</h2>
+    <div class="space-y-3">
+      <% const statusColors = { pending: 'amber', approved: 'emerald', fulfilled: 'blue', rejected: 'rose' }; %>
+      <% for (const r of requests) { %>
+      <div class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/[.02]">
+        <div class="min-w-0">
+          <div class="text-sm font-medium text-white truncate"><%= r.title %></div>
+          <div class="text-xs text-slate-500"><%= formatDate(r.created_at) %></div>
+        </div>
+        <% const c = statusColors[r.status] || 'slate'; %>
+        <span class="px-2.5 py-1 rounded-lg bg-<%= c %>-500/10 text-<%= c %>-400 text-xs font-medium capitalize"><%= r.status %></span>
+      </div>
+      <% } %>
+      <% if (!requests.length) { %>
+      <div class="text-center py-10"><i data-lucide="message-square" class="w-8 h-8 mx-auto text-slate-700 mb-2"></i><p class="text-sm text-slate-500">No requests submitted yet.</p></div>
+      <% } %>
+    </div>
+  </div>
+</div>

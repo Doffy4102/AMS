@@ -1,0 +1,87 @@
+<div x-data="{ addUserOpen: false }">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Enterprise Directory</h1>
+    <p class="text-sm text-slate-500 mt-1">Personnel accounts, roles, and organizational structure</p>
+  </div>
+  <button @click="addUserOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="user-plus" class="w-4 h-4"></i>Add User</button>
+</div>
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[900px] text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-4">Identity</th><th class="px-6 py-4">Role &amp; Access</th><th class="px-6 py-4">Org Structure</th><th class="px-6 py-4">Status</th><th class="px-6 py-4 text-right">Actions</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const u of users) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <img src="<%= u.avatar_url ? '/' + u.avatar_url : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name) + '&background=3b82f6&color=fff' %>" class="w-9 h-9 rounded-xl" alt="">
+              <div>
+                <a href="<%= hams_url('/users/' + u.id) %>" class="font-medium text-white hover:text-blue-400"><%= u.name %></a>
+                <div class="text-xs text-slate-500"><%= u.email %> · <%= u.employee_id || 'EID-PENDING' %></div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs"><%= u.role_display_name || u.role || 'Standard User' %></span></td>
+          <td class="px-6 py-4 text-slate-400"><%= u.department_name || 'Unassigned' %> · <%= u.location_name || 'Global' %></td>
+          <td class="px-6 py-4">
+            <% const active = (u.status || 'pending') === 'active'; %>
+            <span class="px-2.5 py-1 rounded-lg text-xs font-semibold <%= active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400' %>"><%= String(u.status || 'PENDING').toUpperCase() %></span>
+          </td>
+          <td class="px-6 py-4">
+            <div class="flex justify-end gap-1">
+              <a href="<%= hams_url('/users/' + u.id) %>" class="p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="<%= hams_url('/users/' + u.id + '/edit') %>" class="p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!users.length) { %><tr><td colspan="5" class="px-6 py-12 text-center text-slate-500">No users.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add user modal -->
+<div x-show="addUserOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addUserOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-lg">
+    <h3 class="font-heading font-semibold text-white mb-4">Add User</h3>
+    <form method="POST" action="<%= hams_url('/users') %>" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <%- csrf_field %>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Full Name *</label>
+        <input type="text" name="name" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Email *</label>
+        <input type="email" name="email" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Password * (min 8)</label>
+        <input type="password" name="password" required minlength="8" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Employee ID</label>
+        <input type="text" name="employee_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Role</label>
+        <select name="role" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <% for (const r of references.roles) { %><option value="<%= r.name %>" <%= r.name === 'employee' ? 'selected' : '' %>><%= r.display_name || r.name %></option><% } %>
+        </select></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Status</label>
+        <select name="status" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <% for (const s of ['active', 'suspended', 'pending', 'archived']) { %><option value="<%= s %>"><%= s %></option><% } %>
+        </select></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Department</label>
+        <select name="department_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const d of references.departments) { %><option value="<%= d.id %>"><%= d.name %></option><% } %>
+        </select></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Location</label>
+        <select name="location_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const l of references.locations) { %><option value="<%= l.id %>"><%= l.name %></option><% } %>
+        </select></div>
+      <div class="sm:col-span-2 flex justify-end gap-2">
+        <button type="button" @click="addUserOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create User</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>

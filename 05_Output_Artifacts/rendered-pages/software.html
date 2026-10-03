@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{ darkMode: document.documentElement.classList.contains('dark') }" :class="{ 'dark': darkMode, 'light': !darkMode }">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HAMS Enterprise | Enterprise IT Operations</title>
+<meta name="theme-color" content="#4f46e5">
+<meta name="csrf-token" content="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+<link rel="manifest" href="/manifest.json">
+<script>
+(function() {
+  var theme = localStorage.getItem('hams-theme') || 'dark';
+  document.documentElement.classList.add(theme === 'light' ? 'light' : 'dark');
+})();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: {
+    colors: { hams: { bg: '#0a0a0b', card: '#141417', border: '#27272a', primary: '#3b82f6', accent: '#6366f1' } },
+    fontFamily: { sans: ['Inter', 'sans-serif'], heading: ['Outfit', 'sans-serif'] }
+  }}
+};
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root { --hams-bg: #0a0a0b; --hams-card: #141417; --hams-border: rgba(255,255,255,.05); --hams-text: #e2e8f0; --hams-text-muted: #94a3b8; }
+.light { --hams-bg: #f8fafc; --hams-card: #ffffff; --hams-border: rgba(15,23,42,.08); --hams-text: #0f172a; --hams-text-muted: #64748b; }
+body { background: var(--hams-bg); color: var(--hams-text); font-family: 'Inter', sans-serif; }
+h1,h2,h3,.font-heading { font-family: 'Outfit', sans-serif; }
+.glass { background: var(--hams-card); backdrop-filter: blur(20px); border-bottom: 1px solid var(--hams-border); }
+.table-responsive { overflow-x: auto; border-radius: 1.5rem; scrollbar-width: none; }
+.table-responsive::-webkit-scrollbar { display: none; }
+[x-cloak] { display: none !important; }
+.light .bg-hams-bg { background-color: #f8fafc !important; }
+.light .bg-hams-card { background-color: #ffffff !important; }
+.light .text-white { color: #0f172a !important; }
+.light .text-slate-200 { color: #1e293b !important; }
+.light .text-slate-300 { color: #334155 !important; }
+.light .text-slate-400 { color: #64748b !important; }
+.light .text-slate-500 { color: #64748b !important; }
+.light .border-white\/5 { border-color: rgba(15,23,42,.08) !important; }
+.light .bg-white\/5 { background-color: rgba(15,23,42,.04) !important; }
+.light .divide-white\/5 > * { border-color: rgba(15,23,42,.06) !important; }
+.light input, .light select, .light textarea { color-scheme: light; }
+.dark input, .dark select, .dark textarea { color-scheme: dark; }
+input, select, textarea { background: var(--hams-bg); border: 1px solid var(--hams-border); color: var(--hams-text); }
+</style>
+</head>
+<body class="bg-hams-bg text-slate-200 antialiased overflow-x-hidden"
+      x-data="{ sidebarOpen: window.innerWidth >= 1024, isMobile: window.innerWidth < 1024 }"
+      @resize.window="isMobile = window.innerWidth < 1024; if (!isMobile) sidebarOpen = true">
+
+<!-- Command palette -->
+<div x-data="{ open: false, query: '' }" @keydown.window.ctrl.k.prevent="open = true; $nextTick(() => $refs.searchInput && $refs.searchInput.focus())"
+     @open-command-palette.window="open = true; $nextTick(() => $refs.searchInput && $refs.searchInput.focus())"
+     @keydown.escape.window="open = false" x-cloak>
+  <div x-show="open" class="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="open = false"></div>
+    <div class="relative w-full max-w-xl bg-hams-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+      <input x-ref="searchInput" x-model="query" type="text" placeholder="Search assets, users, actions..."
+             class="w-full px-5 py-4 bg-transparent border-0 border-b border-white/5 outline-none text-sm">
+      <div class="p-3 text-xs text-slate-500 uppercase tracking-wider px-5">Navigation &amp; Quick Actions</div>
+      <div class="pb-3 max-h-80 overflow-y-auto">
+        
+        
+        <a href="http://localhost:3000/assets/create" x-show="!query || 'add new asset create hardware'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center"><i data-lucide="plus" class="w-4 h-4"></i></span>
+          Add New Asset
+        </a>
+        
+        <a href="http://localhost:3000/assets" x-show="!query || 'assets catalog hardware list'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+          Assets Catalog
+        </a>
+        
+        <a href="http://localhost:3000/inventory/licenses" x-show="!query || 'license software seats'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-pink-500/15 text-pink-400 flex items-center justify-center"><i data-lucide="key-round" class="w-4 h-4"></i></span>
+          License Manager
+        </a>
+        
+        <a href="http://localhost:3000/inventory" x-show="!query || 'stock inventory consumables accessories'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center"><i data-lucide="package" class="w-4 h-4"></i></span>
+          Stock &amp; Inventory
+        </a>
+        
+        <a href="http://localhost:3000/maintenance" x-show="!query || 'operations maintenance repair'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-orange-500/15 text-orange-400 flex items-center justify-center"><i data-lucide="wrench" class="w-4 h-4"></i></span>
+          Operations &amp; Maintenance
+        </a>
+        
+        <a href="http://localhost:3000/archive" x-show="!query || 'archive deleted restore'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center"><i data-lucide="archive" class="w-4 h-4"></i></span>
+          Archive &amp; Soft-Deletes
+        </a>
+        
+        <a href="http://localhost:3000/settings/monitoring" x-show="!query || 'audit monitoring health'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center"><i data-lucide="activity" class="w-4 h-4"></i></span>
+          Audit &amp; Monitoring
+        </a>
+        
+      </div>
+      <div class="px-5 py-2 border-t border-white/5 text-[10px] text-slate-500 flex justify-between">
+        <span>Enterprise Search Engine v1.0</span><span>&uarr;&darr; to navigate &middot; ENTER to select</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flex h-screen overflow-hidden">
+  <!-- Mobile backdrop -->
+  <div x-show="isMobile && sidebarOpen" class="fixed inset-0 bg-black/50 z-30 lg:hidden" @click="sidebarOpen = false" x-cloak></div>
+
+  <!-- Sidebar -->
+  <aside class="fixed lg:static inset-y-0 left-0 z-40 w-72 bg-hams-card border-r border-white/5 flex flex-col transition-transform duration-200"
+         :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:-translate-x-full lg:hidden'" x-show="sidebarOpen || !isMobile" x-cloak>
+    <div class="h-20 md:h-24 flex items-center gap-3 px-6 border-b border-white/5 shrink-0">
+      
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg font-heading">H</div>
+      
+      <div class="min-w-0">
+        <div class="font-heading font-semibold text-white truncate">HAMS Enterprise</div>
+        <div class="text-[11px] text-slate-500 truncate">Enterprise Asset Management</div>
+      </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-4 py-5 space-y-6 text-sm">
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Core Systems</div>
+        <a href="http://localhost:3000" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="layout-dashboard" class="w-4 h-4"></i>Dashboard</a>
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Administration</div>
+        
+        <a href="http://localhost:3000/users" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="users" class="w-4 h-4"></i>Enterprise Directory</a>
+        <a href="http://localhost:3000/users/ldap" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="network" class="w-4 h-4"></i>LDAP Directory &amp; Sync</a>
+        
+        
+        <a href="http://localhost:3000/settings/roles" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="shield-check" class="w-4 h-4"></i>Roles &amp; Permissions</a>
+        
+        
+        <a href="http://localhost:3000/settings/identity" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="fingerprint" class="w-4 h-4"></i>Identity &amp; SSO</a>
+        <a href="http://localhost:3000/settings/security" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="shield" class="w-4 h-4"></i>Security Center</a>
+        <a href="http://localhost:3000/agents" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="radio" class="w-4 h-4"></i>Endpoint Agents</a>
+        <a href="http://localhost:3000/settings/branding" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="settings" class="w-4 h-4"></i>All Settings</a>
+        
+      </div>
+      
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Asset Management</div>
+        
+        <a href="http://localhost:3000/new-joinees" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="user-check" class="w-4 h-4"></i>New Joinees</a>
+        <a href="http://localhost:3000/assets" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>Hardware</a>
+        <a href="http://localhost:3000/procurement" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="receipt" class="w-4 h-4"></i>Procurement</a>
+        <a href="http://localhost:3000/assets/scan" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="qr-code" class="w-4 h-4"></i>Mobile Scanner</a>
+        <a href="http://localhost:3000/portal/scan" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="scan-barcode" class="w-4 h-4"></i>Barcode Scanner</a>
+        
+        <a href="http://localhost:3000/maintenance" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="wrench" class="w-4 h-4"></i>Maintenance</a>
+        
+        <a href="http://localhost:3000/inventory/accessories" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="mouse" class="w-4 h-4"></i>Accessories</a>
+        <a href="http://localhost:3000/inventory/components" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="cpu" class="w-4 h-4"></i>Components</a>
+        
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">License Management</div>
+        <a href="http://localhost:3000/inventory/licenses" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Licenses</a>
+        <a href="http://localhost:3000/software" class="flex items-center gap-3 px-3 py-2 rounded-xl bg-blue-600/10 text-blue-500 font-medium border-l-2 border-blue-500"><i data-lucide="app-window" class="w-4 h-4"></i>Software</a>
+        <a href="http://localhost:3000/license-allocation" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="gauge" class="w-4 h-4"></i>License Allocation &amp; Utilization</a>
+        
+        <a href="http://localhost:3000/licenses/setup" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i>License Setup</a>
+        
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Inventory Module</div>
+        <a href="http://localhost:3000/inventory/consumables" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="package-minus" class="w-4 h-4"></i>Consumables</a>
+        <a href="http://localhost:3000/inventory-setup" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="boxes" class="w-4 h-4"></i>Inventory Setup</a>
+        <a href="http://localhost:3000/stock-movements" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="arrow-left-right" class="w-4 h-4"></i>Stock Movements</a>
+      </div>
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Analytics</div>
+        
+        <a href="http://localhost:3000/reports" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="file-bar-chart" class="w-4 h-4"></i>Reports</a>
+        
+        
+        <a href="http://localhost:3000/import" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="file-up" class="w-4 h-4"></i>Import Center</a>
+        
+        
+        <a href="http://localhost:3000/requests" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="clipboard-list" class="w-4 h-4"></i>Requests</a>
+        
+      </div>
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">My Workspace</div>
+        <a href="http://localhost:3000/portal/my-assets" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>My Assets</a>
+        <a href="http://localhost:3000/portal/requests" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="message-square" class="w-4 h-4"></i>My Requests</a>
+      </div>
+      
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <header class="h-20 md:h-24 glass flex items-center gap-4 px-4 md:px-8 shrink-0 z-20">
+      <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="menu" class="w-5 h-5"></i></button>
+      <button @click="$dispatch('open-command-palette')"
+              class="flex-1 max-w-md flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/5 text-slate-500 text-sm hover:border-white/10">
+        <i data-lucide="search" class="w-4 h-4"></i>
+        <span class="hidden md:inline">Search everything&hellip;</span><span class="md:hidden">Search&hellip;</span>
+        <kbd class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-white/10 hidden md:inline">Ctrl + K</kbd>
+      </button>
+      <div class="ml-auto flex items-center gap-2">
+        
+        <button id="hams-ai-btn" title="HAMS AI Assistant" class="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-violet-600/20 to-blue-600/20 border border-violet-500/30 hover:border-violet-400/60 text-violet-300 text-sm font-medium">
+          <i data-lucide="sparkles" class="w-4 h-4"></i><span class="hidden md:inline">Ask AI</span>
+        </button>
+        
+        
+        <a href="http://localhost:3000/settings/branding" class="p-2.5 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="settings" class="w-5 h-5"></i></a>
+        
+        <button @click="darkMode = !darkMode; localStorage.setItem('hams-theme', darkMode ? 'dark' : 'light')" class="p-2.5 rounded-xl hover:bg-white/5 text-slate-400">
+          <i data-lucide="moon" class="w-5 h-5" x-show="darkMode"></i>
+          <i data-lucide="sun" class="w-5 h-5" x-show="!darkMode" x-cloak></i>
+        </button>
+        
+        <div x-data="{ createNewOpen: false }" class="relative" @click.outside="createNewOpen = false">
+          <button @click="createNewOpen = !createNewOpen" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">
+            <i data-lucide="plus" class="w-4 h-4"></i><span class="hidden md:inline">Create New</span>
+          </button>
+          <div x-show="createNewOpen" x-cloak x-transition class="absolute right-0 mt-2 w-56 bg-hams-card border border-white/10 rounded-2xl shadow-xl py-2 z-[150]">
+            <a href="http://localhost:3000/assets/create" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>Hardware</a>
+            <a href="http://localhost:3000/inventory/licenses" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Licenses</a>
+            
+            <a href="http://localhost:3000/inventory/accessories" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="mouse" class="w-4 h-4"></i>Accessories</a>
+            <a href="http://localhost:3000/inventory/consumables" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="package-minus" class="w-4 h-4"></i>Consumables</a>
+            <a href="http://localhost:3000/inventory/components" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="cpu" class="w-4 h-4"></i>Components</a>
+            
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/users" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="users" class="w-4 h-4"></i>Users</a>
+            
+          </div>
+        </div>
+        
+        
+        <div x-data="{ profileOpen: false }" class="relative" @click.outside="profileOpen = false">
+          <button @click="profileOpen = !profileOpen" class="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-white/5">
+            <img src="https://ui-avatars.com/api/?name=Administrator&amp;background=3b82f6&amp;color=fff"
+                 class="w-9 h-9 rounded-xl object-cover" alt="avatar">
+            <span class="hidden md:block text-sm font-medium text-white max-w-[120px] truncate">Administrator</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 transition-transform" :class="profileOpen && 'rotate-180'"></i>
+          </button>
+          <div x-show="profileOpen" x-cloak x-transition class="absolute right-0 mt-2 w-60 bg-hams-card border border-white/10 rounded-2xl shadow-xl py-2 z-[150]">
+            <a href="http://localhost:3000/portal/my-assets" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>My Assets</a>
+            <a href="http://localhost:3000/portal/requests" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="message-square" class="w-4 h-4"></i>My Requests</a>
+            
+            <a href="http://localhost:3000/requests" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="clipboard-list" class="w-4 h-4"></i>Requests</a>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/profile" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="user" class="w-4 h-4"></i>Edit Profile</a>
+            <a href="http://localhost:3000/profile" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key" class="w-4 h-4"></i>Change Password</a>
+            <button @click="darkMode = !darkMode; localStorage.setItem('hams-theme', darkMode ? 'dark' : 'light')" class="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5">
+              <i data-lucide="moon" class="w-4 h-4"></i>Dark Mode <span class="ml-auto text-xs text-slate-500" x-text="darkMode ? 'ON' : 'OFF'"></span>
+            </button>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/settings/api-tokens" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Manage API keys</a>
+            <a href="http://localhost:3000/logs" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="scroll-text" class="w-4 h-4"></i>Log Viewer</a>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/logout" class="flex items-center gap-3 px-4 py-2 text-sm text-rose-400 hover:bg-rose-500/10"><i data-lucide="log-out" class="w-4 h-4"></i>Logout</a>
+          </div>
+        </div>
+        
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto px-4 md:px-8 py-6 md:py-8">
+      
+      
+<div class="space-y-6" x-data="{ importOpen: false, previewOpen: false }">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-heading font-semibold text-white mb-1">Software</h1>
+      <p class="text-slate-400">Renewals, subscription coverage and spend across the software estate</p>
+    </div>
+    <div class="flex items-center gap-3">
+      
+      <p class="text-xs text-slate-500">Renewal data available: <span class="text-slate-300 font-mono">2018-07-07</span> → <span class="text-slate-300 font-mono">2028-03-14</span></p>
+      
+      <button @click="importOpen = true" type="button" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="upload" class="w-4 h-4"></i>Import CSV/Excel</button>
+    </div>
+  </div>
+
+  <!-- Date range filter (drives every section below) -->
+  <form id="sw-range-form" method="GET" action="http://localhost:3000/software"
+        class="bg-white/5 border border-white/5 rounded-2xl p-5 flex flex-wrap items-end gap-4">
+    <div>
+      <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">Start Date</label>
+      <input type="date" name="start" value="2026-01-01" required
+             class="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-200">
+    </div>
+    <div>
+      <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">End Date</label>
+      <input type="date" name="end" value="2026-12-31" required
+             class="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-200">
+    </div>
+    
+    
+    
+    <button type="submit" id="sw-apply-btn"
+            class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium flex items-center gap-2">
+      <i data-lucide="filter" class="w-4 h-4"></i><span>Apply Range</span>
+    </button>
+    <span id="sw-loading" class="hidden items-center gap-2 text-sm text-slate-400">
+      <svg class="animate-spin w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
+      Updating…
+    </span>
+
+    <!-- Active cross-filters (set by clicking chart elements) -->
+    
+    <p class="ml-auto text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5"></i>Tip: click any bar or pie slice to filter every section</p>
+    
+  </form>
+
+  <!-- Charts -->
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <!-- 1. Renewal graph -->
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+      <h2 class="text-lg font-semibold text-white mb-1">Upcoming Renewals</h2>
+      <p class="text-xs text-slate-500 mb-4">Licenses due for renewal, grouped by month, each software shown in its own color · click a bar to highlight it and filter the sections below (click elsewhere to clear)</p>
+      
+      <div id="renewalChart" class="w-full" style="height: 260px;"></div>
+      
+    </div>
+
+    <!-- 2. Subscription graph (stacked bars per renewal cycle) -->
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+      <h2 class="text-lg font-semibold text-white mb-1">Subscription Coverage</h2>
+      <p class="text-xs text-slate-500 mb-4">Quantity renewing per month, stacked by renewal cycle · click a bar segment to filter by that cycle</p>
+      
+      
+      <div id="subscriptionChart" class="w-full" style="height: 260px;"></div>
+      
+    </div>
+  </div>
+
+  <!-- 3. Renewal distribution pie -->
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+      <h2 class="text-lg font-semibold text-white mb-1">Renewal Concentration</h2>
+      <p class="text-xs text-slate-500 mb-4">Share of renewal quantity by software · click a slice to filter by that software</p>
+      
+      <div id="distributionChart" class="w-full" style="height: 280px;"></div>
+      
+    </div>
+
+    <!-- 4. Software details table -->
+    <div class="xl:col-span-2 bg-white/5 border border-white/5 rounded-2xl p-6">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 class="text-lg font-semibold text-white">Software Details</h2>
+          <p class="text-xs text-slate-500">Aggregated per product for the selected range · rate 1 USD = <span id="sw-rate">83.5</span> INR</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <select id="sw-name-filter"
+                  class="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-sm text-slate-200">
+            <option value="">All software</option>
+            
+            <option value=".NET Developer Bundle" >.NET Developer Bundle</option>
+            
+            <option value="2FA for Jira" >2FA for Jira</option>
+            
+            <option value="7 Edit" >7 Edit</option>
+            
+            <option value="Commvault FEDCB Data Protection" >Commvault FEDCB Data Protection</option>
+            
+            <option value="CP Rhapsody IDE" >CP Rhapsody IDE</option>
+            
+            <option value="Director Suite" >Director Suite</option>
+            
+            <option value="Q-S-VMDR" >Q-S-VMDR</option>
+            
+            <option value="Traqplan Timeline" >Traqplan Timeline</option>
+            
+          </select>
+          <div class="flex rounded-xl overflow-hidden border border-white/10 text-sm" id="sw-currency-toggle">
+            <button type="button" data-currency="INR" class="px-4 py-1.5 bg-blue-600 text-white font-medium">₹ INR</button>
+            <button type="button" data-currency="USD" class="px-4 py-1.5 bg-white/5 text-slate-300">$ USD</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="border-b border-white/10">
+            <tr class="text-slate-400 text-xs uppercase tracking-wider">
+              <th class="text-left py-3 px-3 font-medium">Software Name</th>
+              <th class="text-right py-3 px-3 font-medium">Qty</th>
+              <th class="text-right py-3 px-3 font-medium">Pricing (<span class="sw-currency-label">INR</span>)</th>
+              <th class="text-left py-3 px-3 font-medium">Subscription Type</th>
+              <th class="text-left py-3 px-3 font-medium">Mode of Procurement</th>
+              <th class="text-left py-3 px-3 font-medium">Next Renewal</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-3 px-3 text-white font-medium">Commvault FEDCB Data Protection
+                <span class="text-slate-500 text-xs">(89 records)</span>
+              </td>
+              <td class="py-3 px-3 text-right text-slate-300">453</td>
+              <td class="py-3 px-3 text-right text-slate-200 font-mono sw-amount" data-inr="22012079.00">
+                ₹2,20,12,079
+              </td>
+              <td class="py-3 px-3">
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-slate-500/20 text-slate-300">Perpetual</span>
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-blue-500/20 text-blue-300">Subscription</span>
+                
+              </td>
+              <td class="py-3 px-3 text-slate-300 text-xs">Vendor: Pentagon System And Services Pvt. Ltd</td>
+              <td class="py-3 px-3 text-slate-300 font-mono text-xs">2026-01-26</td>
+            </tr>
+            
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-3 px-3 text-white font-medium">Traqplan Timeline
+                <span class="text-slate-500 text-xs">(79 records)</span>
+              </td>
+              <td class="py-3 px-3 text-right text-slate-300">412</td>
+              <td class="py-3 px-3 text-right text-slate-200 font-mono sw-amount" data-inr="20896460.00">
+                ₹2,08,96,460
+              </td>
+              <td class="py-3 px-3">
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-slate-500/20 text-slate-300">Perpetual</span>
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-blue-500/20 text-blue-300">Subscription</span>
+                
+              </td>
+              <td class="py-3 px-3 text-slate-300 text-xs">Vendor: RALCO synergy pvt ltd</td>
+              <td class="py-3 px-3 text-slate-300 font-mono text-xs">2026-01-01</td>
+            </tr>
+            
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-3 px-3 text-white font-medium">CP Rhapsody IDE
+                <span class="text-slate-500 text-xs">(78 records)</span>
+              </td>
+              <td class="py-3 px-3 text-right text-slate-300">342</td>
+              <td class="py-3 px-3 text-right text-slate-200 font-mono sw-amount" data-inr="19956039.00">
+                ₹1,99,56,039
+              </td>
+              <td class="py-3 px-3">
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-slate-500/20 text-slate-300">Perpetual</span>
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-blue-500/20 text-blue-300">Subscription</span>
+                
+              </td>
+              <td class="py-3 px-3 text-slate-300 text-xs">Client Provided</td>
+              <td class="py-3 px-3 text-slate-300 font-mono text-xs">2026-01-08</td>
+            </tr>
+            
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-3 px-3 text-white font-medium">Director Suite
+                <span class="text-slate-500 text-xs">(76 records)</span>
+              </td>
+              <td class="py-3 px-3 text-right text-slate-300">384</td>
+              <td class="py-3 px-3 text-right text-slate-200 font-mono sw-amount" data-inr="19354528.00">
+                ₹1,93,54,528
+              </td>
+              <td class="py-3 px-3">
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-slate-500/20 text-slate-300">Perpetual</span>
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-blue-500/20 text-blue-300">Subscription</span>
+                
+              </td>
+              <td class="py-3 px-3 text-slate-300 text-xs">Online Purchase</td>
+              <td class="py-3 px-3 text-slate-300 font-mono text-xs">2026-01-08</td>
+            </tr>
+            
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-3 px-3 text-white font-medium">Q-S-VMDR
+                <span class="text-slate-500 text-xs">(72 records)</span>
+              </td>
+              <td class="py-3 px-3 text-right text-slate-300">366</td>
+              <td class="py-3 px-3 text-right text-slate-200 font-mono sw-amount" data-inr="19304503.00">
+                ₹1,93,04,503
+              </td>
+              <td class="py-3 px-3">
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-slate-500/20 text-slate-300">Perpetual</span>
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-blue-500/20 text-blue-300">Subscription</span>
+                
+              </td>
+              <td class="py-3 px-3 text-slate-300 text-xs">Vendor: R S Consulting Services</td>
+              <td class="py-3 px-3 text-slate-300 font-mono text-xs">2026-02-10</td>
+            </tr>
+            
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-3 px-3 text-white font-medium">.NET Developer Bundle
+                <span class="text-slate-500 text-xs">(84 records)</span>
+              </td>
+              <td class="py-3 px-3 text-right text-slate-300">431</td>
+              <td class="py-3 px-3 text-right text-slate-200 font-mono sw-amount" data-inr="18367237.00">
+                ₹1,83,67,237
+              </td>
+              <td class="py-3 px-3">
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-slate-500/20 text-slate-300">Perpetual</span>
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-blue-500/20 text-blue-300">Subscription</span>
+                
+              </td>
+              <td class="py-3 px-3 text-slate-300 text-xs">Vendor: Red Gate Software Ltd</td>
+              <td class="py-3 px-3 text-slate-300 font-mono text-xs">2026-01-03</td>
+            </tr>
+            
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-3 px-3 text-white font-medium">7 Edit
+                <span class="text-slate-500 text-xs">(67 records)</span>
+              </td>
+              <td class="py-3 px-3 text-right text-slate-300">307</td>
+              <td class="py-3 px-3 text-right text-slate-200 font-mono sw-amount" data-inr="17281467.00">
+                ₹1,72,81,467
+              </td>
+              <td class="py-3 px-3">
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-slate-500/20 text-slate-300">Perpetual</span>
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-blue-500/20 text-blue-300">Subscription</span>
+                
+              </td>
+              <td class="py-3 px-3 text-slate-300 text-xs">Vendor: Embee Software Pvt Ltd</td>
+              <td class="py-3 px-3 text-slate-300 font-mono text-xs">2026-01-18</td>
+            </tr>
+            
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-3 px-3 text-white font-medium">2FA for Jira
+                <span class="text-slate-500 text-xs">(66 records)</span>
+              </td>
+              <td class="py-3 px-3 text-right text-slate-300">312</td>
+              <td class="py-3 px-3 text-right text-slate-200 font-mono sw-amount" data-inr="17217778.00">
+                ₹1,72,17,778
+              </td>
+              <td class="py-3 px-3">
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-slate-500/20 text-slate-300">Perpetual</span>
+                
+                <span class="inline-block px-2 py-0.5 mr-1 rounded text-[11px] font-semibold bg-blue-500/20 text-blue-300">Subscription</span>
+                
+              </td>
+              <td class="py-3 px-3 text-slate-300 text-xs">Online Purchase</td>
+              <td class="py-3 px-3 text-slate-300 font-mono text-xs">2026-02-08</td>
+            </tr>
+            
+          </tbody>
+        </table>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- Import CSV/Excel modal -->
+  <div x-show="importOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="importOpen = false"></div>
+    <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-lg">
+      <h3 class="font-heading font-semibold text-white mb-1">Import Software Assets</h3>
+      <p class="text-xs text-slate-500 mb-4">Upload a CSV or Excel (.xlsx) file. Qty must be between 0 and 10; rows outside that range or missing a Software Name will be flagged for review before anything is imported.</p>
+      <form method="POST" action="http://localhost:3000/software/import/preview" enctype="multipart/form-data" class="space-y-4">
+        <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">File *</label>
+          <input type="file" name="file" accept=".csv,.xlsx,.xls" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm text-slate-300 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-white/10 file:text-slate-200 file:text-xs">
+        </div>
+        <div class="flex items-center justify-between">
+          <a href="http://localhost:3000/software/import/template" class="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1.5"><i data-lucide="download" class="w-3.5 h-3.5"></i>Download CSV template</a>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" @click="importOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i>Preview Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Import preview / confirm modal -->
+  
+</div>
+
+<script>
+(function() {
+  // ---- shared config ----
+  var USD_INR_RATE = 83.5;
+  var BASE_URL = "http://localhost:3000/software";
+  var baseChart = {
+    chart: { toolbar: { show: false }, foreColor: '#94a3b8', background: 'transparent' },
+    grid: { borderColor: 'rgba(255,255,255,0.06)' },
+    dataLabels: { enabled: false },
+    theme: { mode: 'dark' }
+  };
+  var esc = function(s) { return String(s).replace(/[&<>"]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+
+  // Cross-filter navigation: keep current params, apply overrides (null deletes),
+  // show the loading indicator, reload with the new query.
+  function goWith(overrides) {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.get('start')) p.set('start', document.querySelector('[name=start]').value);
+    if (!p.get('end')) p.set('end', document.querySelector('[name=end]').value);
+    Object.keys(overrides).forEach(function(k) {
+      if (overrides[k] === null) p.delete(k); else p.set(k, overrides[k]);
+    });
+    showLoading();
+    window.location.href = BASE_URL + '?' + p.toString();
+  }
+  function showLoading() {
+    var el = document.getElementById('sw-loading');
+    el.classList.remove('hidden'); el.classList.add('inline-flex');
+    document.getElementById('sw-apply-btn').setAttribute('disabled', 'disabled');
+  }
+  document.getElementById('sw-range-form').addEventListener('submit', showLoading);
+
+  // ---- 1. Renewal chart (STACKED bar, one series per software so each gets
+  // its own color within a single bar; click a bar -> highlight it + filter
+  // other sections, WITHOUT changing this chart's own bars; click empty space
+  // to clear the selection) ----
+  var renewalBuckets = [{"bucket":"2026-01","total":62},{"bucket":"2026-02","total":47},{"bucket":"2026-03","total":25},{"bucket":"2026-04","total":43},{"bucket":"2026-05","total":61},{"bucket":"2026-06","total":55},{"bucket":"2026-07","total":35},{"bucket":"2026-08","total":38},{"bucket":"2026-09","total":9},{"bucket":"2026-10","total":10},{"bucket":"2026-11","total":52},{"bucket":"2026-12","total":52}];
+  var renewalSwSeries = [{"name":".NET Developer Bundle","data":[9,10,0,12,5,7,3,6,3,0,9,19]},{"name":"2FA for Jira","data":[0,0,0,0,7,3,10,0,0,0,0,4]},{"name":"7 Edit","data":[8,0,3,9,15,11,2,16,0,0,0,7]},{"name":"Commvault FEDCB Data Protection","data":[5,10,0,7,0,10,0,0,5,0,11,13]},{"name":"CP Rhapsody IDE","data":[9,0,12,0,11,10,5,0,0,0,0,9]},{"name":"Director Suite","data":[31,10,10,4,0,0,1,5,1,0,23,0]},{"name":"Q-S-VMDR","data":[0,7,0,11,7,9,6,11,0,10,9,0]},{"name":"Traqplan Timeline","data":[0,10,0,0,16,5,8,0,0,0,0,0]}];
+  var selectedBucket = null;
+  var selectedBucketIndex = selectedBucket
+    ? renewalBuckets.findIndex(function(b) { return b.bucket === selectedBucket; })
+    : -1;
+
+  // Stable per-software color: looked up by name against the FULL software
+  // list (not the filtered subset in this view), so a given software always
+  // gets the same color regardless of date range or which names are present.
+  var SW_PALETTE_NAMES = [".NET Developer Bundle","2FA for Jira","7 Edit","Commvault FEDCB Data Protection","CP Rhapsody IDE","Director Suite","Q-S-VMDR","Traqplan Timeline"];
+  var SW_PALETTE = ['#3b82f6', '#f59e0b', '#10b981', '#a78bfa', '#f43f5e', '#22d3ee', '#eab308', '#94a3b8'];
+  function colorForSoftware(name) {
+    var i = SW_PALETTE_NAMES.indexOf(name);
+    if (i < 0) i = SW_PALETTE_NAMES.length; // unknown name: extend past the base palette
+    if (i < SW_PALETTE.length) return SW_PALETTE[i];
+    // Beyond the base palette, generate additional distinct hues (golden-angle spin).
+    return 'hsl(' + ((i * 137.508) % 360).toFixed(0) + ', 65%, 55%)';
+  }
+
+  // Custom whole-column highlight: ApexCharts' own toggleDataPointSelection
+  // only supports ONE selected point per series-set at a time (calling it for
+  // multiple series clears the earlier ones instead of adding to them), so it
+  // can't highlight every software's segment in a stacked column. Instead,
+  // darken every bar-area at the given x-index across ALL series directly.
+  function highlightColumn(dataPointIndex) {
+    document.querySelectorAll('#renewalChart .apexcharts-series').forEach(function(g) {
+      var bars = g.querySelectorAll('.apexcharts-bar-area');
+      bars.forEach(function(bar, i) { bar.style.filter = (i === dataPointIndex) ? 'brightness(0.55)' : ''; });
+    });
+  }
+
+  if (renewalBuckets.length && document.getElementById('renewalChart')) {
+    new ApexCharts(document.getElementById('renewalChart'), Object.assign({}, baseChart, {
+      chart: Object.assign({}, baseChart.chart, {
+        type: 'bar', height: 260, stacked: true,
+        events: {
+          mounted: function() {
+            if (selectedBucketIndex >= 0) highlightColumn(selectedBucketIndex);
+          },
+          // dataPointSelection gives the x-axis index directly regardless of
+          // which stacked segment (software) was clicked — reliable even with
+          // multiple series, unlike hunting for the element in the DOM.
+          dataPointSelection: function(e, ctx, cfg) {
+            var b = renewalBuckets[cfg.dataPointIndex];
+            if (b && b.bucket !== selectedBucket) goWith({ bucket: b.bucket }); // highlight + filter other sections; this chart's bars stay as-is
+          }
+        }
+      }),
+      series: renewalSwSeries,
+      colors: renewalSwSeries.map(function(s) { return colorForSoftware(s.name); }),
+      xaxis: { categories: renewalBuckets.map(function(b) { return b.bucket; }), labels: { rotate: -45, style: { fontSize: '10px' } } },
+      yaxis: { title: { text: 'Quantity due for renewal' } },
+      legend: { position: 'top', fontSize: '11px' },
+      plotOptions: { bar: { borderRadius: 3, columnWidth: '60%' } },
+      tooltip: {
+        shared: true, intersect: false,
+        custom: function(opts) {
+          var b = renewalBuckets[opts.dataPointIndex];
+          var html = '<div style="padding:10px 12px;background:#141417;border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px">';
+          html += '<div style="font-weight:600;color:#fff;margin-bottom:6px">' + esc(b.bucket) + ' &middot; ' + b.total + ' license(s) due</div>';
+          renewalSwSeries.forEach(function(s) {
+            var qty = s.data[opts.dataPointIndex];
+            if (!qty) return;
+            html += '<div style="color:#cbd5e1"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + colorForSoftware(s.name) + ';margin-right:6px"></span>' + esc(s.name) + ' &mdash; <b>' + qty + '</b></div>';
+          });
+          html += '<div style="color:#64748b;margin-top:6px">Click to highlight &amp; filter the sections below</div>';
+          return html + '</div>';
+        }
+      }
+    })).render();
+
+    // Raw DOM listener only to detect "clicked empty chart area" (no bar
+    // ancestor) — the latter clears the selection. Bar clicks themselves are
+    // handled by the reliable dataPointSelection event above.
+    document.getElementById('renewalChart').addEventListener('click', function(e) {
+      if (!e.target.closest('.apexcharts-bar-area') && selectedBucket) {
+        goWith({ bucket: null }); // clicked empty chart area -> clear selection
+      }
+    });
+  }
+
+  // ---- 2. Subscription chart (STACKED BAR per renewal cycle; click segment -> cycle + month filter) ----
+  var subLabels = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07","2026-08","2026-09","2026-10","2026-11","2026-12"];
+  var subSeries = [{"name":"Annual","data":[0,10,4,18,28,22,20,11,4,0,30,29],"names":["Traqplan Timeline","Commvault FEDCB Data Protection|CP Rhapsody IDE",".NET Developer Bundle|Director Suite|Traqplan Timeline","7 Edit|Director Suite|Q-S-VMDR","7 Edit|CP Rhapsody IDE|Q-S-VMDR|Traqplan Timeline",".NET Developer Bundle|7 Edit|CP Rhapsody IDE|Q-S-VMDR","CP Rhapsody IDE|Director Suite|Q-S-VMDR|Traqplan Timeline",".NET Developer Bundle|Director Suite",".NET Developer Bundle|Director Suite","",".NET Developer Bundle|Director Suite|Q-S-VMDR",".NET Developer Bundle|2FA for Jira|7 Edit|CP Rhapsody IDE"]},{"name":"6 Months","data":[27,20,15,16,33,25,13,22,5,10,22,18],"names":[".NET Developer Bundle|7 Edit|Director Suite",".NET Developer Bundle|Director Suite","7 Edit|CP Rhapsody IDE|Director Suite",".NET Developer Bundle|Commvault FEDCB Data Protection|Q-S-VMDR",".NET Developer Bundle|2FA for Jira|7 Edit|CP Rhapsody IDE|Traqplan Timeline",".NET Developer Bundle|2FA for Jira|Commvault FEDCB Data Protection|Traqplan Timeline",".NET Developer Bundle|2FA for Jira","7 Edit|Q-S-VMDR","Commvault FEDCB Data Protection","Q-S-VMDR","Commvault FEDCB Data Protection|Director Suite|Q-S-VMDR",".NET Developer Bundle|Commvault FEDCB Data Protection"]},{"name":"Perpetual","data":[35,17,6,9,0,8,2,5,0,0,0,5],"names":["Commvault FEDCB Data Protection|CP Rhapsody IDE|Director Suite",".NET Developer Bundle|2FA for Jira|Q-S-VMDR|Traqplan Timeline","Director Suite",".NET Developer Bundle|7 Edit","","7 Edit","7 Edit","Q-S-VMDR","","","","Commvault FEDCB Data Protection"]}];
+  if (document.getElementById('subscriptionChart')) {
+    new ApexCharts(document.getElementById('subscriptionChart'), Object.assign({}, baseChart, {
+      chart: Object.assign({}, baseChart.chart, {
+        type: 'bar', height: 260, stacked: true,
+        events: {
+          dataPointSelection: function(e, ctx, cfg) {
+            var s = subSeries[cfg.seriesIndex];
+            if (s) goWith({ cycle: s.name }); // cycle filter only — start/end stay as selected
+          }
+        }
+      }),
+      series: subSeries.map(function(s) { return { name: s.name, data: s.data }; }),
+      xaxis: { categories: subLabels, labels: { rotate: -45, style: { fontSize: '10px' } } },
+      yaxis: { title: { text: 'Quantity renewing' } },
+      colors: ['#3b82f6', '#f59e0b', '#a78bfa', '#64748b'],
+      plotOptions: { bar: { borderRadius: 2, columnWidth: '65%' } },
+      legend: { position: 'top' },
+      states: { active: { filter: { type: 'darken', value: 0.6 } } },
+      tooltip: {
+        shared: false, intersect: true,
+        custom: function(opts) {
+          var s = subSeries[opts.seriesIndex];
+          if (!s) return '';
+          var names = (s.names[opts.dataPointIndex] || '').split('|').filter(Boolean);
+          var html = '<div style="padding:10px 12px;background:#141417;border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px">';
+          html += '<div style="font-weight:600;color:#fff;margin-bottom:4px">' + esc(subLabels[opts.dataPointIndex]) + ' &middot; ' + esc(s.name) + (s.perpetual ? ' (no expiry)' : '') + '</div>';
+          html += '<div style="color:#cbd5e1;margin-bottom:4px">Quantity: <b>' + s.data[opts.dataPointIndex] + '</b></div>';
+          names.slice(0, 8).forEach(function(n) { html += '<div style="color:#94a3b8">&bull; ' + esc(n) + '</div>'; });
+          if (names.length > 8) html += '<div style="color:#64748b">+' + (names.length - 8) + ' more</div>';
+          html += '<div style="color:#64748b;margin-top:6px">Click to filter by this cycle</div>';
+          return html + '</div>';
+        }
+      }
+    })).render();
+  }
+
+  // ---- 3. Renewal distribution pie (click slice -> software filter) ----
+  var dist = [{"name":"Director Suite","qty":85},{"name":".NET Developer Bundle","qty":83},{"name":"7 Edit","qty":71},{"name":"Q-S-VMDR","qty":70},{"name":"Commvault FEDCB Data Protection","qty":61},{"name":"CP Rhapsody IDE","qty":56},{"name":"Traqplan Timeline","qty":39},{"name":"2FA for Jira","qty":24}];
+  if (dist.length && document.getElementById('distributionChart')) {
+    var distTotal = dist.reduce(function(a, d) { return a + d.qty; }, 0);
+    new ApexCharts(document.getElementById('distributionChart'), Object.assign({}, baseChart, {
+      chart: Object.assign({}, baseChart.chart, {
+        type: 'donut', height: 280,
+        events: {
+          dataPointSelection: function(e, ctx, cfg) {
+            var d = dist[cfg.dataPointIndex];
+            if (d) goWith({ sw: d.name });
+          }
+        }
+      }),
+      series: dist.map(function(d) { return d.qty; }),
+      labels: dist.map(function(d) { return d.name; }),
+      colors: ['#3b82f6', '#f59e0b', '#10b981', '#a78bfa', '#f43f5e', '#22d3ee', '#eab308', '#94a3b8'],
+      legend: { position: 'bottom', fontSize: '11px' },
+      tooltip: {
+        y: {
+          formatter: function(val) {
+            return val + ' license(s) · ' + (distTotal ? (val * 100 / distTotal).toFixed(1) : 0) + '% · click to filter';
+          }
+        }
+      }
+    })).render();
+  }
+
+  // ---- 4a. Software name filter (drives every section, like chart clicks) ----
+  document.getElementById('sw-name-filter').addEventListener('change', function() {
+    goWith({ sw: this.value || null });
+  });
+
+  // ---- 4b. Currency toggle (INR base -> USD via configurable rate) ----
+  var toggle = document.getElementById('sw-currency-toggle');
+  if (toggle) {
+    toggle.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-currency]');
+      if (!btn) return;
+      var cur = btn.dataset.currency;
+      toggle.querySelectorAll('[data-currency]').forEach(function(b) {
+        var active = b === btn;
+        b.className = active ? 'px-4 py-1.5 bg-blue-600 text-white font-medium' : 'px-4 py-1.5 bg-white/5 text-slate-300';
+      });
+      document.querySelectorAll('.sw-currency-label').forEach(function(el) { el.textContent = cur; });
+      document.querySelectorAll('.sw-amount').forEach(function(cell) {
+        var inr = parseFloat(cell.dataset.inr);
+        if (isNaN(inr)) { cell.textContent = '—'; return; }
+        if (cur === 'USD') {
+          cell.textContent = '$' + (inr / USD_INR_RATE).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        } else {
+          cell.textContent = '₹' + inr.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+        }
+      });
+    });
+  }
+})();
+</script>
+
+    </div>
+  </main>
+</div>
+
+
+<!-- HAMS AI Assistant drawer -->
+<div id="hams-ai-backdrop" class="fixed inset-0 z-[170] hidden bg-black/50 backdrop-blur-sm"></div>
+<div id="hams-ai-panel" class="fixed inset-y-0 right-0 z-[180] w-full sm:w-[440px] hidden flex-col bg-hams-card border-l border-white/10 shadow-2xl">
+  <div class="flex items-center gap-3 px-5 py-4 border-b border-white/5 shrink-0">
+    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center text-white"><i data-lucide="sparkles" class="w-4 h-4"></i></span>
+    <div class="min-w-0">
+      <div class="font-heading font-semibold text-white text-sm">HAMS AI Assistant</div>
+      <div class="text-[11px] text-slate-500">Answers from your live data — markets, clients, software, spend &amp; more</div>
+    </div>
+    <button id="hams-ai-close" class="ml-auto p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+  </div>
+
+  <div id="hams-ai-messages" class="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-sm"></div>
+
+  <div id="hams-ai-suggestions" class="px-5 pb-2 shrink-0 flex flex-wrap gap-2">
+    <button data-ai-suggest="How many software products do we have for Athena in HMT2?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Software for Athena in HMT2</button>
+    <button data-ai-suggest="Which market has the highest number of licenses?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Top market by licenses</button>
+    <button data-ai-suggest="What are our estimated savings?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Estimated savings</button>
+    <button data-ai-suggest="What renews in the next 90 days?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Upcoming renewals</button>
+    <button data-ai-suggest="What can you do?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">What can you do?</button>
+  </div>
+
+  <div class="px-5 py-4 border-t border-white/5 shrink-0">
+    <form id="hams-ai-form" class="flex items-center gap-2">
+      <input id="hams-ai-input" type="text" maxlength="500" placeholder="Ask about markets, clients, software, spend…" autocomplete="off"
+             class="flex-1 px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm text-slate-200 focus:border-violet-500/60 outline-none">
+      <button type="submit" id="hams-ai-send" class="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-40"><i data-lucide="send" class="w-4 h-4"></i></button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  var AI_URL = "http://localhost:3000/assistant/query";
+  var panel = document.getElementById('hams-ai-panel');
+  var backdrop = document.getElementById('hams-ai-backdrop');
+  var messages = document.getElementById('hams-ai-messages');
+  var suggestions = document.getElementById('hams-ai-suggestions');
+  var input = document.getElementById('hams-ai-input');
+  var sendBtn = document.getElementById('hams-ai-send');
+  var esc = function(s) { return String(s).replace(/[&<>"]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+  var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+  function openPanel() {
+    panel.classList.remove('hidden'); panel.classList.add('flex');
+    backdrop.classList.remove('hidden');
+    if (!messages.children.length) {
+      addBubble('bot', '<p>Hi! I answer questions straight from your HAMS data. Try one of the suggestions below, or ask anything about markets, clients, software, licenses, spending or renewals.</p>');
+    }
+    setTimeout(function() { input.focus(); }, 50);
+  }
+  function closePanel() {
+    panel.classList.add('hidden'); panel.classList.remove('flex');
+    backdrop.classList.add('hidden');
+  }
+  document.getElementById('hams-ai-btn').addEventListener('click', openPanel);
+  document.getElementById('hams-ai-close').addEventListener('click', closePanel);
+  backdrop.addEventListener('click', closePanel);
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closePanel(); });
+
+  function addBubble(who, html) {
+    var wrap = document.createElement('div');
+    if (who === 'user') {
+      wrap.className = 'flex justify-end';
+      wrap.innerHTML = '<div class="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-br-sm bg-blue-600 text-white">' + html + '</div>';
+    } else {
+      wrap.className = 'flex justify-start';
+      wrap.innerHTML = '<div class="max-w-[95%] px-4 py-3 rounded-2xl rounded-bl-sm bg-white/5 border border-white/5 text-slate-200 space-y-3 overflow-hidden">' + html + '</div>';
+    }
+    messages.appendChild(wrap);
+    messages.scrollTop = messages.scrollHeight;
+    return wrap;
+  }
+
+  function renderAnswer(a) {
+    var html = '';
+    if (a.summary) html += '<p class="leading-relaxed">' + esc(a.summary) + '</p>';
+    if (a.metrics && a.metrics.length) {
+      html += '<div class="grid grid-cols-2 gap-2">' + a.metrics.map(function(m) {
+        return '<div class="px-3 py-2 rounded-xl bg-white/5 border border-white/5"><div class="text-[10px] uppercase tracking-wider text-slate-500">' + esc(m.label) + '</div><div class="text-sm font-semibold text-white">' + esc(m.value) + '</div></div>';
+      }).join('') + '</div>';
+    }
+    if (a.table && a.table.rows && a.table.rows.length) {
+      html += '<div class="overflow-x-auto rounded-xl border border-white/10"><table class="w-full text-xs"><thead><tr class="text-left text-slate-500 uppercase bg-white/5">' +
+        a.table.columns.map(function(c) { return '<th class="px-3 py-2 whitespace-nowrap">' + esc(c) + '</th>'; }).join('') +
+        '</tr></thead><tbody class="divide-y divide-white/5">' +
+        a.table.rows.slice(0, 15).map(function(r) {
+          return '<tr>' + r.map(function(c) { return '<td class="px-3 py-2 whitespace-nowrap text-slate-300">' + esc(c) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>';
+      if (a.table.rows.length > 15) html += '<p class="text-[11px] text-slate-500">Showing 15 of ' + a.table.rows.length + ' rows.</p>';
+    }
+    if (a.insights && a.insights.length) {
+      html += '<div class="space-y-1">' + a.insights.map(function(i) {
+        return '<p class="text-[12px] text-slate-400 flex gap-1.5"><span class="text-violet-400">◆</span><span>' + esc(i) + '</span></p>';
+      }).join('') + '</div>';
+    }
+    if (a.recommendations && a.recommendations.length) {
+      html += '<div class="space-y-1">' + a.recommendations.map(function(r) {
+        return '<p class="text-[12px] text-emerald-300/90 flex gap-1.5"><span>→</span><span>' + esc(r) + '</span></p>';
+      }).join('') + '</div>';
+    }
+    return html || '<p>I could not build an answer for that.</p>';
+  }
+
+  function send(question) {
+    question = (question || '').trim();
+    if (!question) return;
+    suggestions.classList.add('hidden');
+    addBubble('user', esc(question));
+    input.value = '';
+    sendBtn.disabled = true;
+    var typing = addBubble('bot', '<span class="inline-flex gap-1 items-center text-slate-400"><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce"></span><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style="animation-delay:.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style="animation-delay:.3s"></span></span>');
+    fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _csrf: csrf, question: question })
+    })
+      .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(function(a) { typing.remove(); addBubble('bot', renderAnswer(a)); })
+      .catch(function(err) { typing.remove(); addBubble('bot', '<p class="text-rose-300">Something went wrong (' + esc(err.message) + '). Please try again.</p>'); })
+      .finally(function() { sendBtn.disabled = false; input.focus(); });
+  }
+
+  document.getElementById('hams-ai-form').addEventListener('submit', function(e) { e.preventDefault(); send(input.value); });
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); send(input.value); }
+  });
+  suggestions.addEventListener('click', function(e) {
+    var b = e.target.closest('[data-ai-suggest]');
+    if (b) send(b.dataset.aiSuggest);
+  });
+})();
+</script>
+
+
+<!-- Global confirm modal -->
+<div id="hams-confirm-modal" class="fixed inset-0 z-[200] hidden items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-400 flex items-center justify-center"><i data-lucide="triangle-alert" class="w-5 h-5"></i></span>
+      <h3 class="font-heading font-semibold text-white">Confirm Action</h3>
+    </div>
+    <p id="hams-confirm-message" class="text-sm text-slate-400 mb-5"></p>
+    <div class="flex justify-end gap-2">
+      <button data-confirm-cancel class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300 hover:bg-white/10">Cancel</button>
+      <button data-confirm-ok class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-sm text-white font-medium">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('load', function() { if (window.lucide) lucide.createIcons(); });
+document.addEventListener('DOMContentLoaded', function() { if (window.lucide) lucide.createIcons(); });
+
+// Global confirm modal wiring (data-confirm on forms, data-confirm-click on buttons)
+(function() {
+  var modal = document.getElementById('hams-confirm-modal');
+  var msgEl = document.getElementById('hams-confirm-message');
+  var pending = null;
+  function show(message, onOk) {
+    msgEl.textContent = message;
+    pending = onOk;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  function hide() { modal.classList.add('hidden'); modal.classList.remove('flex'); pending = null; }
+  modal.querySelector('[data-confirm-cancel]').addEventListener('click', hide);
+  modal.querySelector('[data-confirm-ok]').addEventListener('click', function() { var fn = pending; hide(); if (fn) fn(); });
+  document.addEventListener('submit', function(e) {
+    var form = e.target.closest('form[data-confirm]');
+    if (form && !form.dataset.confirmed) {
+      e.preventDefault();
+      show(form.dataset.confirm, function() { form.dataset.confirmed = '1'; form.submit(); });
+    }
+  }, true);
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-confirm-click]');
+    if (btn && !btn.dataset.confirmed) {
+      e.preventDefault();
+      show(btn.dataset.confirmClick, function() {
+        btn.dataset.confirmed = '1';
+        if (btn.formAction && btn.form) { btn.form.action = btn.formAction; btn.form.submit(); }
+        else btn.click();
+      });
+    }
+  }, true);
+})();
+
+// Barcode scan helper (BarcodeDetector with prompt fallback)
+document.addEventListener('click', async function(e) {
+  var btn = e.target.closest('[data-barcode-scan]');
+  if (!btn) return;
+  var fieldName = btn.dataset.barcodeScan;
+  var input = document.querySelector('[name="' + fieldName + '"], [data-barcode-target="' + fieldName + '"]');
+  if (!input) return;
+  var code = window.prompt('Scan or enter barcode value:');
+  if (code) { input.value = code; input.dispatchEvent(new Event('input')); }
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(function() {});
+  });
+}
+</script>
+</body>
+</html>

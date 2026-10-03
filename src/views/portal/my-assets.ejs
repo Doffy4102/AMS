@@ -1,0 +1,104 @@
+<div x-data="{ activeTab: 'hardware' }">
+<div class="mb-8">
+  <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">My Assets</h1>
+  <p class="text-sm text-slate-500 mt-1">Everything currently in your custody</p>
+</div>
+
+<div class="flex flex-wrap gap-2 mb-6">
+  <% const tabs = [
+    ['hardware', 'Hardware', 'laptop', assets.length],
+    ['accessories', 'Accessories', 'keyboard', accessories.length],
+    ['licenses', 'Software Licenses', 'key', licenses.length],
+    ['components', 'Installed Components', 'cpu', components.length]
+  ]; %>
+  <% for (const [key, label, icon, count] of tabs) { %>
+  <button @click="activeTab = '<%= key %>'"
+          :class="activeTab === '<%= key %>' ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400 hover:text-white'"
+          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium">
+    <i data-lucide="<%= icon %>" class="w-4 h-4"></i><%= label %>
+    <span class="px-1.5 py-0.5 rounded bg-black/20 text-xs"><%= count %></span>
+  </button>
+  <% } %>
+</div>
+
+<div x-show="activeTab === 'hardware'" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+  <% for (const a of assets) { %>
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <div class="flex items-start justify-between mb-4">
+      <span class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-5 h-5"></i></span>
+      <span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold uppercase">Active Custody</span>
+    </div>
+    <div class="font-semibold text-white mb-1"><%= a.name %></div>
+    <div class="text-xs font-mono text-slate-500 mb-3"><%= a.asset_tag %></div>
+    <dl class="space-y-1.5 text-xs">
+      <div class="flex justify-between"><dt class="text-slate-500">Model</dt><dd class="text-slate-300"><%= a.model_name || a.model_number || '—' %></dd></div>
+      <div class="flex justify-between"><dt class="text-slate-500">Serial</dt><dd class="text-slate-300 font-mono"><%= a.serial_number || '—' %></dd></div>
+      <div class="flex justify-between"><dt class="text-slate-500">Manufacturer</dt><dd class="text-slate-300"><%= a.manufacturer_name || '—' %></dd></div>
+    </dl>
+  </div>
+  <% } %>
+  <% if (!assets.length) { %><p class="text-sm text-slate-500 col-span-full py-8 text-center">No hardware assigned.</p><% } %>
+</div>
+
+<div x-show="activeTab === 'accessories'" x-cloak class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+  <% for (const a of accessories) { %>
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <div class="flex items-start justify-between mb-4">
+      <span class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center"><i data-lucide="keyboard" class="w-5 h-5"></i></span>
+      <span class="px-2 py-0.5 rounded bg-white/5 text-xs">Qty <%= a.qty %></span>
+    </div>
+    <div class="font-semibold text-white mb-3"><%= a.name %></div>
+    <dl class="space-y-1.5 text-xs">
+      <div class="flex justify-between"><dt class="text-slate-500">Manufacturer</dt><dd class="text-slate-300"><%= a.manufacturer_name || '—' %></dd></div>
+      <div class="flex justify-between"><dt class="text-slate-500">Category</dt><dd class="text-slate-300"><%= a.category_name || '—' %></dd></div>
+      <div class="flex justify-between"><dt class="text-slate-500">Checked Out</dt><dd class="text-slate-300"><%= formatDate(a.assigned_at) %></dd></div>
+    </dl>
+  </div>
+  <% } %>
+  <% if (!accessories.length) { %><p class="text-sm text-slate-500 col-span-full py-8 text-center">No accessories assigned.</p><% } %>
+</div>
+
+<div x-show="activeTab === 'licenses'" x-cloak class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+  <% for (const l of licenses) { %>
+  <% let badge = ['Licensed', 'emerald'];
+     if (l.expiration_date) {
+       const exp = new Date(l.expiration_date);
+       const in90 = new Date(); in90.setDate(in90.getDate() + 90);
+       if (exp < new Date()) badge = ['Expired', 'rose'];
+       else if (exp < in90) badge = ['Expiring Soon', 'amber'];
+     } %>
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <div class="flex items-start justify-between mb-4">
+      <span class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center"><i data-lucide="key" class="w-5 h-5"></i></span>
+      <span class="px-2.5 py-1 rounded-lg bg-<%= badge[1] %>-500/10 text-<%= badge[1] %>-400 text-[10px] font-semibold uppercase"><%= badge[0] %></span>
+    </div>
+    <div class="font-semibold text-white mb-3"><%= l.name %></div>
+    <dl class="space-y-1.5 text-xs">
+      <div class="flex justify-between"><dt class="text-slate-500">Manufacturer</dt><dd class="text-slate-300"><%= l.manufacturer_name || '—' %></dd></div>
+      <% if (l.asset_name) { %><div class="flex justify-between"><dt class="text-slate-500">Via Asset</dt><dd class="text-slate-300"><%= l.asset_name %> (<%= l.asset_tag %>)</dd></div><% } %>
+      <div class="flex justify-between"><dt class="text-slate-500">Expires</dt><dd class="text-slate-300"><%= formatDate(l.expiration_date) || 'Perpetual' %></dd></div>
+      <div class="flex justify-between"><dt class="text-slate-500">Assigned</dt><dd class="text-slate-300"><%= formatDate(l.assigned_at) %></dd></div>
+    </dl>
+  </div>
+  <% } %>
+  <% if (!licenses.length) { %><p class="text-sm text-slate-500 col-span-full py-8 text-center">No licenses assigned.</p><% } %>
+</div>
+
+<div x-show="activeTab === 'components'" x-cloak class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+  <% for (const c of components) { %>
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <div class="flex items-start justify-between mb-4">
+      <span class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center"><i data-lucide="cpu" class="w-5 h-5"></i></span>
+      <span class="px-2 py-0.5 rounded bg-white/5 text-xs">Qty <%= c.qty %></span>
+    </div>
+    <div class="font-semibold text-white mb-3"><%= c.name %></div>
+    <dl class="space-y-1.5 text-xs">
+      <div class="flex justify-between"><dt class="text-slate-500">Installed In</dt><dd class="text-slate-300"><%= c.asset_name %> (<%= c.asset_tag %>)</dd></div>
+      <div class="flex justify-between"><dt class="text-slate-500">Manufacturer</dt><dd class="text-slate-300"><%= c.manufacturer_name || '—' %></dd></div>
+      <div class="flex justify-between"><dt class="text-slate-500">Deployed</dt><dd class="text-slate-300"><%= formatDate(c.assigned_at) %></dd></div>
+    </dl>
+  </div>
+  <% } %>
+  <% if (!components.length) { %><p class="text-sm text-slate-500 col-span-full py-8 text-center">No components installed in your assets.</p><% } %>
+</div>
+</div>

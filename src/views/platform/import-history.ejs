@@ -1,0 +1,36 @@
+<div x-data="{ expandedJob: null }">
+<div class="mb-8">
+  <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Import History</h1>
+  <p class="text-sm text-slate-500 mt-1">Recent bulk import jobs</p>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[800px] text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-4">Module</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Total</th><th class="px-6 py-4">Imported</th><th class="px-6 py-4">Failed</th><th class="px-6 py-4">By</th><th class="px-6 py-4">Date</th><th class="px-6 py-4">Errors</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const j of jobs) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-3 text-white"><%= j.type %></td>
+          <td class="px-6 py-3"><span class="px-2 py-0.5 rounded text-xs <%= j.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' : (j.status === 'partial' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400') %>"><%= j.status %></span></td>
+          <td class="px-6 py-3 text-slate-400"><%= j.rows_total %></td>
+          <td class="px-6 py-3 text-emerald-400"><%= j.rows_imported %></td>
+          <td class="px-6 py-3 text-rose-400"><%= j.rows_total - j.rows_imported %></td>
+          <td class="px-6 py-3 text-slate-400"><%= j.user_name || 'System' %></td>
+          <td class="px-6 py-3 text-slate-500"><%= formatDateTime(j.created_at) %></td>
+          <td class="px-6 py-3">
+            <% if (j.errors) { %>
+            <button @click="expandedJob = expandedJob === <%= j.id %> ? null : <%= j.id %>" class="text-xs text-blue-400 hover:underline">Toggle</button>
+            <div x-show="expandedJob === <%= j.id %>" x-cloak class="mt-2 text-xs text-rose-400 whitespace-pre-line max-w-sm"><%= j.errors %></div>
+            <% } else { %><span class="text-xs text-slate-600">—</span><% } %>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!jobs.length) { %><tr><td colspan="8" class="px-6 py-12 text-center text-slate-500">No import jobs.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>

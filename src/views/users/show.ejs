@@ -1,0 +1,66 @@
+<div class="flex items-center gap-3 mb-8">
+  <a href="<%= hams_url('/users') %>" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+  <div class="flex items-center gap-4">
+    <img src="<%= user.avatar_url ? '/' + user.avatar_url : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&background=3b82f6&color=fff&size=96' %>" class="w-14 h-14 rounded-2xl" alt="">
+    <div>
+      <h1 class="font-heading text-2xl md:text-3xl font-bold text-white"><%= user.name %></h1>
+      <p class="text-sm text-slate-500"><%= user.email %></p>
+    </div>
+  </div>
+  <a href="<%= hams_url('/users/' + user.id + '/edit') %>" class="ml-auto flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300"><i data-lucide="edit-3" class="w-4 h-4"></i>Edit</a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="space-y-6">
+    <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+      <h2 class="font-heading font-semibold text-white mb-4">Profile</h2>
+      <dl class="space-y-3 text-sm">
+        <div class="flex justify-between"><dt class="text-slate-500">Employee ID</dt><dd class="text-white"><%= user.employee_id || 'EID-PENDING' %></dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Status</dt><dd class="text-white uppercase"><%= user.status %></dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Department</dt><dd class="text-white"><%= user.department_name || 'Unassigned' %></dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Location</dt><dd class="text-white"><%= user.location_name || 'Global' %></dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Last Login</dt><dd class="text-white"><%= user.last_login_at ? formatDateTime(user.last_login_at) : 'Never' %></dd></div>
+      </dl>
+    </div>
+    <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+      <h2 class="font-heading font-semibold text-white mb-4">Security Role</h2>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <% const roleChips = (user.roles && user.roles.length) ? user.roles.map(r => r.display_name || r.name) : [user.role]; %>
+        <% for (const chip of roleChips) { %>
+        <span class="px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-400 text-xs font-medium"><%= chip %></span>
+        <% } %>
+      </div>
+      <form method="POST" action="<%= hams_url('/users/' + user.id + '/role') %>" class="flex gap-2">
+        <%- csrf_field %>
+        <select name="role_id" class="flex-1 px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <% for (const r of references.roles) { %>
+          <option value="<%= r.id %>" <%= user.role === r.name ? 'selected' : '' %>><%= r.display_name || r.name %></option>
+          <% } %>
+        </select>
+        <button class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm">Change Role</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="lg:col-span-2 bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+    <h2 class="font-heading font-semibold text-white px-6 pt-6 pb-4">Assigned Assets</h2>
+    <div class="table-responsive">
+      <table class="w-full min-w-[600px] text-sm">
+        <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+          <th class="px-6 py-3">Asset</th><th class="px-6 py-3">Tag</th><th class="px-6 py-3">Category</th><th class="px-6 py-3">Status</th>
+        </tr></thead>
+        <tbody class="divide-y divide-white/5">
+          <% for (const a of user.assets) { %>
+          <tr>
+            <td class="px-6 py-3"><a href="<%= hams_url('/assets/' + a.id) %>" class="text-white hover:text-blue-400"><%= a.name %></a></td>
+            <td class="px-6 py-3 font-mono text-slate-400"><%= a.asset_tag %></td>
+            <td class="px-6 py-3 text-slate-400"><%= a.category_name || '—' %></td>
+            <td class="px-6 py-3 text-slate-400"><%= a.status_label_name || a.status %></td>
+          </tr>
+          <% } %>
+          <% if (!user.assets.length) { %><tr><td colspan="4" class="px-6 py-10 text-center text-slate-500">No assets assigned.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

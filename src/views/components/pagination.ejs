@@ -1,0 +1,13 @@
+<% if (typeof paginator !== 'undefined' && paginator && paginator.hasPages()) { %>
+<div class="flex items-center justify-between px-6 py-4 border-t border-white/5 text-sm">
+  <div class="text-slate-500">Showing <%= paginator.from() %>&ndash;<%= paginator.to() %> of <%= paginator.total %></div>
+  <div class="flex items-center gap-1">
+    <% const base = typeof baseUrl !== 'undefined' && baseUrl ? baseUrl : '?'; %>
+    <% const sep = base.includes('?') ? '&' : '?'; %>
+    <% for (const link of paginator.getLinks()) { %>
+      <a href="<%= base %><%= sep %>page=<%= link.page %>"
+         class="w-9 h-9 flex items-center justify-center rounded-lg <%= link.active ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-white/5' %>"><%= link.page %></a>
+    <% } %>
+  </div>
+</div>
+<% } %>

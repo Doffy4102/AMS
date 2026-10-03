@@ -1,0 +1,198 @@
+<div x-data="{ addOpen: false, editOpen: false, editItem: {}, selected: [], selectAll: false }"
+     x-effect="if (selectAll) selected = <%- JSON.stringify(page.items.map(i => String(i.id))) %>">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+  <div class="flex items-center gap-3">
+    <a href="<%= hams_url('/inventory-setup') %>" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+    <div>
+      <h1 class="font-heading text-2xl md:text-3xl font-bold text-white"><%= page.title %></h1>
+      <p class="text-sm text-slate-500 mt-1 max-w-xl"><%= page.description %></p>
+    </div>
+  </div>
+  <button @click="addOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>Add Record</button>
+</div>
+
+<div x-show="selected.length > 0" x-cloak class="mb-4 flex items-center gap-3 bg-hams-card border border-rose-500/20 rounded-2xl px-5 py-3">
+  <span class="text-sm text-rose-400 font-medium" x-text="selected.length + ' selected'"></span>
+  <form method="POST" action="<%= hams_url('/inventory-setup/' + page.type + '/bulk-delete') %>" data-confirm="Delete the selected records?">
+    <%- csrf_field %>
+    <template x-for="id in selected" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
+    <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Delete Selected</button>
+  </form>
+</div>
+
+<form method="GET" class="mb-4 max-w-sm relative">
+  <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+  <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="Search..." class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-hams-card border border-white/10 text-sm">
+</form>
+
+<%
+// Per-type column + field configuration
+const t = page.type;
+const FIELDS = {
+  'categories': [['name','Name','text',1],['type','Type','select',0,['asset','accessory','consumable','component','license']],['color','Color','color',0],['requires_acceptance','Requires Acceptance','checkbox',0],['fieldset_id','Fieldset','ref-select',0,'custom_fieldsets']],
+  'manufacturers': [['name','Name','text',1],['url','Website URL','text',0],['support_url','Support URL','text',0]],
+  'suppliers': [['name','Name','text',1],['contact_name','Contact Name','text',0],['email','Email','email',0],['phone','Phone','text',0],['address','Address','textarea',0]],
+  'locations': [['name','Name','text',1],['address','Address','textarea',0],['city','City','text',0],['country','Country','text',0]],
+  'sub-locations': [['location_id','Parent Location','ref-select',1,'locations'],['name','Name','text',1],['code','Code','text',0],['floor','Floor','text',0],['room','Room','text',0],['notes','Notes','textarea',0]],
+  'status-labels': [['name','Name','text',1],['type','Type','select',0,['deployable','deployed','pending','undeployable','archived']],['color','Color','color',0]],
+  'models': [['name','Name','text',1],['model_number','Model Number','text',0],['manufacturer_id','Manufacturer','ref-select',0,'manufacturers'],['category_id','Category','ref-select',0,'categories'],['default_warranty_months','Default Warranty (months)','number',0],['eol_months','EOL (months)','number',0]],
+  'custom-fields': [['name','Name','text',1],['field_key','Field Key (auto if blank)','text',0],['field_type','Field Type','select',0,['text','number','date','select','boolean']],['options','Options (for select)','textarea',0],['is_required','Required','checkbox',0]],
+  'custom-fieldsets': [['name','Name','text',1],['description','Description','textarea',0]]
+};
+const fields = FIELDS[t] || [['name','Name','text',1]];
+const COLUMNS = {
+  'categories': [['name','Name'],['type','Type'],['color','Color']],
+  'manufacturers': [['name','Name'],['url','Website'],['support_url','Support']],
+  'suppliers': [['name','Name'],['contact_name','Contact'],['email','Email'],['phone','Phone']],
+  'locations': [['name','Name'],['city','City'],['country','Country']],
+  'sub-locations': [['name','Name'],['location_name','Parent Location'],['code','Code'],['floor','Floor'],['room','Room']],
+  'status-labels': [['name','Name'],['type','Type'],['color','Color']],
+  'models': [['name','Name'],['model_number','Model #'],['manufacturer_name','Manufacturer'],['category_name','Category'],['default_warranty_months','Warranty (mo)']],
+  'custom-fields': [['name','Name'],['field_key','Key'],['field_type','Type'],['is_required','Required']],
+  'custom-fieldsets': [['name','Name'],['module_key','Module'],['fields_count','Fields'],['description','Description']]
+};
+const columns = COLUMNS[t] || [['name','Name']];
+const refMap = { locations: page.references.locations, manufacturers: page.references.manufacturers, categories: page.references.categories, custom_fieldsets: page.references.custom_fieldsets };
+%>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[700px] text-sm">
+      <thead>
+        <tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+          <th class="px-6 py-4 w-10"><input type="checkbox" x-model="selectAll" class="rounded"></th>
+          <% for (const [, label] of columns) { %><th class="px-6 py-4"><%= label %></th><% } %>
+          <th class="px-6 py-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const item of page.items) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="<%= item.id %>" x-model="selected" class="rounded"></td>
+          <% for (const [key] of columns) { %>
+          <td class="px-6 py-4 <%= key === 'name' ? 'text-white font-medium' : 'text-slate-400' %>">
+            <% if (key === 'color' && item.color) { %>
+              <span class="inline-flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full" style="background:<%= item.color %>"></span><%= item.color %></span>
+            <% } else if (typeof item[key] === 'boolean') { %>
+              <%= item[key] ? 'Yes' : 'No' %>
+            <% } else { %>
+              <%= item[key] !== null && item[key] !== undefined ? item[key] : '—' %>
+            <% } %>
+          </td>
+          <% } %>
+          <td class="px-6 py-4">
+            <div class="flex justify-end gap-1">
+              <button @click='editItem = <%- JSON.stringify(item).replace(/'/g, "&#39;") %>; editOpen = true' class="p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+              <form method="POST" action="<%= hams_url('/inventory-setup/' + t + '/' + item.id + '/delete') %>" data-confirm="Delete this record?">
+                <%- csrf_field %>
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!page.items.length) { %><tr><td colspan="<%= columns.length + 2 %>" class="px-6 py-12 text-center text-slate-500">No records yet.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <%- await include('../components/pagination', { paginator: page.paginator, baseUrl: hams_url('/inventory-setup/' + t) + (filters.search ? '?search=' + encodeURIComponent(filters.search) : '') }) %>
+</div>
+
+<%
+function fieldInput(f, valueExpr) {
+  return f;
+}
+%>
+<!-- Add modal -->
+<div x-show="addOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4 overflow-y-auto py-8">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">Add <%= page.title %></h3>
+    <form method="POST" action="<%= hams_url('/inventory-setup/' + t) %>" class="space-y-4">
+      <%- csrf_field %>
+      <% for (const [name, label, type, required, extra] of fields) { %>
+      <div>
+        <% if (type === 'checkbox') { %>
+        <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="<%= name %>" value="1" class="rounded"><%= label %></label>
+        <% } else { %>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5"><%= label %><%= required ? ' *' : '' %></label>
+          <% if (type === 'select') { %>
+          <select name="<%= name %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+            <% for (const opt of extra) { %><option value="<%= opt %>"><%= opt %></option><% } %>
+          </select>
+          <% } else if (type === 'ref-select') { %>
+          <select name="<%= name %>" <%= required ? 'required' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+            <option value="">— None —</option>
+            <% for (const o of (refMap[extra] || [])) { %><option value="<%= o.id %>"><%= o.name %></option><% } %>
+          </select>
+          <% } else if (type === 'textarea') { %>
+          <textarea name="<%= name %>" rows="2" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea>
+          <% } else { %>
+          <input type="<%= type %>" name="<%= name %>" <%= required ? 'required' : '' %> <%= type === 'color' ? 'value=#3b82f6' : '' %>
+                 class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <% } %>
+        <% } %>
+      </div>
+      <% } %>
+      <% if (t === 'custom-fieldsets') { %>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Modules</label>
+        <% for (const mk of ['assets', 'accessories', 'consumables', 'components', 'licenses']) { %>
+        <label class="inline-flex items-center gap-1.5 mr-3 text-sm text-slate-300"><input type="checkbox" name="module_keys[]" value="<%= mk %>" <%= mk === 'assets' ? 'checked' : '' %> class="rounded"><%= mk %></label>
+        <% } %>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Fields</label>
+        <div class="max-h-40 overflow-y-auto space-y-1 border border-white/5 rounded-xl p-3">
+          <% for (const cf of page.references.custom_fields) { %>
+          <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="field_ids[]" value="<%= cf.id %>" class="rounded"><%= cf.name %> <span class="text-xs text-slate-500">(<%= cf.field_key %>)</span></label>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" @click="addOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm text-white font-medium">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div x-show="editOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4 overflow-y-auto py-8">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="editOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">Edit Record</h3>
+    <form method="POST" :action="'<%= hams_url('/inventory-setup/' + t) %>/' + editItem.id + '/update'" class="space-y-4">
+      <%- csrf_field %>
+      <% for (const [name, label, type, required, extra] of fields) { %>
+      <div>
+        <% if (type === 'checkbox') { %>
+        <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="<%= name %>" value="1" :checked="!!editItem.<%= name %>" class="rounded"><%= label %></label>
+        <% } else { %>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5"><%= label %><%= required ? ' *' : '' %></label>
+          <% if (type === 'select') { %>
+          <select name="<%= name %>" x-model="editItem.<%= name %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+            <% for (const opt of extra) { %><option value="<%= opt %>"><%= opt %></option><% } %>
+          </select>
+          <% } else if (type === 'ref-select') { %>
+          <select name="<%= name %>" x-model="editItem.<%= name %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+            <option value="">— None —</option>
+            <% for (const o of (refMap[extra] || [])) { %><option value="<%= o.id %>"><%= o.name %></option><% } %>
+          </select>
+          <% } else if (type === 'textarea') { %>
+          <textarea name="<%= name %>" rows="2" x-model="editItem.<%= name %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea>
+          <% } else { %>
+          <input type="<%= type %>" name="<%= name %>" x-model="editItem.<%= name %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <% } %>
+        <% } %>
+      </div>
+      <% } %>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" @click="editOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm text-white font-medium">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>

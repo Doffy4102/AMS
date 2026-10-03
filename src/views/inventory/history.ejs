@@ -1,0 +1,43 @@
+<div class="flex items-center gap-3 mb-8">
+  <a href="<%= hams_url('/inventory/' + type) %>" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+  <div>
+    <h1 class="font-heading text-2xl font-bold text-white"><%= item ? item.name : 'Item' %> — History</h1>
+    <p class="text-sm text-slate-500 mt-1 capitalize"><%= type %> #<%= id %><%= item && item.manufacturer_name ? ' · ' + item.manufacturer_name : '' %></p>
+  </div>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[800px] text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-4">Action</th><th class="px-6 py-4">Assigned To</th><th class="px-6 py-4">Quantity</th><th class="px-6 py-4">Date</th><th class="px-6 py-4">Status</th><th class="px-6 py-4 text-right">Actions</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const h of history) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4 text-white"><%= h.action %></td>
+          <td class="px-6 py-4 text-slate-400"><%= h.subject %></td>
+          <td class="px-6 py-4 text-slate-400"><%= h.qty %></td>
+          <td class="px-6 py-4 text-slate-400"><%= formatDateTime(h.created_at) %></td>
+          <td class="px-6 py-4">
+            <% if (h.returned_at) { %>
+            <span class="px-2.5 py-1 rounded-lg bg-white/5 text-slate-400 text-xs">Returned <%= formatDate(h.returned_at) %></span>
+            <% } else { %>
+            <span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs">Active</span>
+            <% } %>
+          </td>
+          <td class="px-6 py-4 text-right">
+            <% if (!h.returned_at && type !== 'consumables') { %>
+            <form method="POST" action="<%= hams_url('/inventory/' + type + '/assignments/' + h.id + '/return') %>" data-confirm="Record return for this assignment?">
+              <%- csrf_field %>
+              <button class="text-xs text-blue-400 hover:underline">Return / Revoke</button>
+            </form>
+            <% } %>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!history.length) { %><tr><td colspan="6" class="px-6 py-12 text-center text-slate-500">No history for this item.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,124 @@
+<div x-data="{ supplierOpen: false, manufacturerOpen: false, editOpen: false, editType: '', editItem: {} }">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">License Setup</h1>
+    <p class="text-sm text-slate-500 mt-1">Software manufacturers and license suppliers</p>
+  </div>
+  <div class="flex gap-2">
+    <button @click="manufacturerOpen = true" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300"><i data-lucide="plus" class="w-4 h-4"></i>Manufacturer</button>
+    <button @click="supplierOpen = true" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>Supplier</button>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+    <h2 class="font-heading font-semibold text-white px-6 pt-6 pb-4">License Suppliers</h2>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-3">Supplier</th><th class="px-6 py-3">Contact</th><th class="px-6 py-3 text-right">Actions</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const s of page.suppliers) { %>
+        <tr>
+          <td class="px-6 py-3"><div class="text-white font-medium"><%= s.name %></div><div class="text-xs text-slate-500"><%= s.website || '' %></div></td>
+          <td class="px-6 py-3 text-slate-400"><%= s.contact_name || '—' %><div class="text-xs text-slate-500"><%= s.email || '' %> <%= s.phone || '' %></div></td>
+          <td class="px-6 py-3">
+            <div class="flex justify-end gap-1">
+              <button @click='editType = "suppliers"; editItem = <%- JSON.stringify(s).replace(/'/g, "&#39;") %>; editOpen = true' class="p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+              <form method="POST" action="<%= hams_url('/licenses/setup/suppliers/' + s.id + '/delete') %>" data-confirm="Delete this supplier?">
+                <%- csrf_field %><button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!page.suppliers.length) { %><tr><td colspan="3" class="px-6 py-10 text-center text-slate-500">No suppliers.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+    <h2 class="font-heading font-semibold text-white px-6 pt-6 pb-4">License Manufacturers</h2>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-3">Manufacturer</th><th class="px-6 py-3">Support</th><th class="px-6 py-3 text-right">Actions</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const m of page.manufacturers) { %>
+        <tr>
+          <td class="px-6 py-3"><div class="text-white font-medium"><%= m.name %></div><div class="text-xs text-slate-500"><%= m.website || '' %></div></td>
+          <td class="px-6 py-3 text-slate-400"><%= m.support_url || '—' %></td>
+          <td class="px-6 py-3">
+            <div class="flex justify-end gap-1">
+              <button @click='editType = "manufacturers"; editItem = <%- JSON.stringify(m).replace(/'/g, "&#39;") %>; editOpen = true' class="p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+              <form method="POST" action="<%= hams_url('/licenses/setup/manufacturers/' + m.id + '/delete') %>" data-confirm="Delete this manufacturer?">
+                <%- csrf_field %><button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!page.manufacturers.length) { %><tr><td colspan="3" class="px-6 py-10 text-center text-slate-500">No manufacturers.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Supplier modal -->
+<div x-show="supplierOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="supplierOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">Add License Supplier</h3>
+    <form method="POST" action="<%= hams_url('/licenses/setup/suppliers') %>" class="space-y-3">
+      <%- csrf_field %>
+      <% for (const [name, label] of [['name', 'Name *'], ['contact_name', 'Contact Name'], ['email', 'Email'], ['phone', 'Phone'], ['website', 'Website'], ['notes', 'Notes']]) { %>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1"><%= label %></label>
+        <input type="text" name="<%= name %>" <%= name === 'name' ? 'required' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <% } %>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" @click="supplierOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Manufacturer modal -->
+<div x-show="manufacturerOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="manufacturerOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">Add License Manufacturer</h3>
+    <form method="POST" action="<%= hams_url('/licenses/setup/manufacturers') %>" class="space-y-3">
+      <%- csrf_field %>
+      <% for (const [name, label] of [['name', 'Name *'], ['website', 'Website'], ['support_url', 'Support URL'], ['notes', 'Notes']]) { %>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1"><%= label %></label>
+        <input type="text" name="<%= name %>" <%= name === 'name' ? 'required' : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <% } %>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" @click="manufacturerOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div x-show="editOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="editOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">Edit Record</h3>
+    <form method="POST" :action="'<%= hams_url('/licenses/setup') %>/' + editType + '/' + editItem.id + '/update'" class="space-y-3">
+      <%- csrf_field %>
+      <% for (const [name, label] of [['name', 'Name *'], ['contact_name', 'Contact Name'], ['email', 'Email'], ['phone', 'Phone'], ['website', 'Website'], ['support_url', 'Support URL'], ['notes', 'Notes']]) { %>
+      <div x-show="<%= ['name', 'website', 'notes'].includes(name) %> || editType === 'suppliers' && <%= ['contact_name', 'email', 'phone'].includes(name) %> || editType === 'manufacturers' && <%= name === 'support_url' %>">
+        <label class="block text-xs font-medium text-slate-400 mb-1"><%= label %></label>
+        <input type="text" name="<%= name %>" x-model="editItem.<%= name %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+      </div>
+      <% } %>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" @click="editOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>

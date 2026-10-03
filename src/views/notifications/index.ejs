@@ -1,0 +1,33 @@
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Notification Center</h1>
+    <p class="text-sm text-slate-500 mt-1">System alerts and workflow updates</p>
+  </div>
+  <form method="POST" action="<%= hams_url('/notifications/read-all') %>">
+    <%- csrf_field %>
+    <button class="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">Mark All Read</button>
+  </form>
+</div>
+
+<div class="space-y-3 max-w-3xl">
+  <% for (const n of notifications) { %>
+  <div class="bg-hams-card border rounded-2xl p-5 <%= n.is_read ? 'border-white/5' : 'border-blue-500/30 bg-blue-500/[.03]' %>">
+    <div class="flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <div class="text-sm font-semibold text-white mb-1"><%= n.subject %></div>
+        <p class="text-sm text-slate-400 whitespace-pre-line"><%= n.message %></p>
+        <div class="text-xs text-slate-600 mt-2"><%= n.type %> · <%= formatDateTime(n.created_at) %></div>
+      </div>
+      <% if (!n.is_read) { %>
+      <form method="POST" action="<%= hams_url('/notifications/' + n.id + '/read') %>">
+        <%- csrf_field %>
+        <button class="px-3 py-1.5 rounded-lg bg-blue-600/15 text-blue-400 hover:bg-blue-600/25 text-xs shrink-0">Read</button>
+      </form>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+  <% if (!notifications.length) { %>
+  <div class="text-center py-16"><i data-lucide="bell-off" class="w-10 h-10 mx-auto text-slate-700 mb-3"></i><p class="text-sm text-slate-500">No notifications yet.</p></div>
+  <% } %>
+</div>

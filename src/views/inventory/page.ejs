@@ -1,0 +1,298 @@
+<%
+const t = page.type;
+const isLicense = t === 'licenses';
+const isConsumable = t === 'consumables';
+const availCol = isConsumable ? 'remaining_qty' : 'available_qty';
+%>
+<div x-data="{ addOpen: false, editOpen: false, editItem: {}, assignOpen: false, assignItem: {}, selected: [], selectAll: false }"
+     x-effect="if (selectAll) selected = <%- JSON.stringify(page.items.map(i => String(i.id))) %>">
+
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+  <div>
+    <div class="text-xs text-slate-500 uppercase tracking-wider mb-1"><%= page.group %></div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white"><%= page.title %></h1>
+    <p class="text-sm text-slate-500 mt-1 max-w-2xl"><%= page.description %></p>
+  </div>
+  <button @click="addOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>Add Item</button>
+</div>
+
+<div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+  <% for (const stat of page.stats) { %>
+  <div class="bg-hams-card border border-white/5 rounded-2xl p-4 flex items-center gap-3">
+    <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="<%= stat.icon %>" class="w-4 h-4"></i></span>
+    <div>
+      <div class="text-lg font-bold text-white font-heading"><%= stat.value %></div>
+      <div class="text-[10px] text-slate-500"><%= stat.label %></div>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<div x-show="selected.length > 0" x-cloak class="mb-4 flex items-center gap-3 bg-hams-card border border-rose-500/20 rounded-2xl px-5 py-3">
+  <span class="text-sm text-rose-400 font-medium" x-text="selected.length + ' selected'"></span>
+  <form method="POST" action="<%= hams_url('/inventory/' + t + '/bulk-delete') %>" data-confirm="Delete the selected items?">
+    <%- csrf_field %>
+    <template x-for="id in selected" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
+    <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Delete Selected</button>
+  </form>
+</div>
+
+<form method="GET" class="mb-4 max-w-sm relative">
+  <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+  <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="Search..." class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-hams-card border border-white/10 text-sm">
+</form>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[900px] text-sm">
+      <thead>
+        <tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+          <th class="px-6 py-4 w-10"><input type="checkbox" x-model="selectAll" class="rounded"></th>
+          <% if (isLicense) { %>
+          <th class="px-6 py-4">License</th><th class="px-6 py-4">Manufacturer</th><th class="px-6 py-4">Seats</th><th class="px-6 py-4">Available</th><th class="px-6 py-4">Expires</th>
+          <% } else { %>
+          <th class="px-6 py-4">Name</th><th class="px-6 py-4">Category</th><th class="px-6 py-4">Manufacturer</th><th class="px-6 py-4">Location</th><th class="px-6 py-4">Stock</th><th class="px-6 py-4">Minimum</th>
+          <% } %>
+          <th class="px-6 py-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const item of page.items) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="<%= item.id %>" x-model="selected" class="rounded"></td>
+          <% if (isLicense) { %>
+          <td class="px-6 py-4"><div class="font-medium text-white"><%= item.name %></div>
+            <% if ((item.assignments || []).length) { %><div class="text-xs text-slate-500 mt-0.5"><%= item.assignments.length %> active assignment(s)</div><% } %></td>
+          <td class="px-6 py-4 text-slate-400"><%= item.manufacturer_name || '—' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= item.seats %></td>
+          <td class="px-6 py-4"><span class="<%= item.available_seats > 0 ? 'text-emerald-400' : 'text-rose-400' %> font-medium"><%= item.available_seats %></span></td>
+          <td class="px-6 py-4 text-slate-400"><%= formatDate(item.expiration_date) || 'Perpetual' %></td>
+          <% } else { %>
+          <td class="px-6 py-4"><div class="font-medium text-white"><%= item.name %></div>
+            <% if (item.serial_number) { %><div class="text-xs text-slate-500 font-mono"><%= item.serial_number %></div><% } %>
+            <% if ((item.assignments || []).length) { %><div class="text-xs text-blue-400 mt-0.5"><%= item.assignments.length %> active assignment(s)</div><% } %></td>
+          <td class="px-6 py-4 text-slate-400"><%= item.category_name || '—' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= item.manufacturer_name || '—' %></td>
+          <td class="px-6 py-4 text-slate-400"><%= item.location_name || '—' %></td>
+          <% const avail = item[availCol] || 0; const low = item.min_qty > 0 && avail <= item.min_qty; %>
+          <td class="px-6 py-4"><span class="<%= low ? 'text-rose-400' : 'text-emerald-400' %> font-medium"><%= avail %></span><span class="text-slate-500"> / <%= item.total_qty %></span></td>
+          <td class="px-6 py-4 text-slate-400"><%= item.min_qty %></td>
+          <% } %>
+          <td class="px-6 py-4">
+            <div class="flex justify-end gap-1">
+              <button @click='assignItem = { id: <%= item.id %>, name: <%- JSON.stringify(item.name) %> }; assignOpen = true'
+                      class="p-2 rounded-lg hover:bg-emerald-500/10 text-emerald-400" title="<%= isConsumable ? 'Issue' : 'Assign' %>"><i data-lucide="send" class="w-4 h-4"></i></button>
+              <a href="<%= hams_url('/inventory/' + t + '/' + item.id + '/history') %>" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="History"><i data-lucide="history" class="w-4 h-4"></i></a>
+              <button @click='editItem = <%- JSON.stringify(item).replace(/'/g, "&#39;") %>; editOpen = true' class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+              <form method="POST" action="<%= hams_url('/inventory/' + t + '/' + item.id + '/delete') %>" data-confirm="Delete this item?">
+                <%- csrf_field %>
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!page.items.length) { %><tr><td colspan="8" class="px-6 py-12 text-center text-slate-500">No records found.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <%- await include('../components/pagination', { paginator: page.paginator, baseUrl: hams_url('/inventory/' + t) + (filters.search ? '?search=' + encodeURIComponent(filters.search) : '') }) %>
+</div>
+
+<%
+// Form fields per type
+const refs = page.references;
+%>
+<% const formFields = `
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+` %>
+
+<!-- Add / Edit modals share this fields macro via EJS include-like blocks -->
+<% const renderItemFields = (prefix) => { %>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="md:col-span-2">
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Name *</label>
+      <input type="text" name="name" required <%- prefix ? `x-model="editItem.name"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Category</label>
+      <select name="category_id" <%- prefix ? `x-model="editItem.category_id"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">— None —</option>
+        <% for (const c of refs.categories) { %><option value="<%= c.id %>"><%= c.name %></option><% } %>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Manufacturer</label>
+      <select name="manufacturer_id" <%- prefix ? `x-model="editItem.${isLicense ? 'license_manufacturer_id' : 'manufacturer_id'}"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">— None —</option>
+        <% for (const m of refs.manufacturers) { %><option value="<%= m.id %>"><%= m.name %></option><% } %>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Supplier</label>
+      <select name="supplier_id" <%- prefix ? `x-model="editItem.${isLicense ? 'license_supplier_id' : 'supplier_id'}"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">— None —</option>
+        <% for (const s of refs.suppliers) { %><option value="<%= s.id %>"><%= s.name %></option><% } %>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Location</label>
+      <select name="location_id" <%- prefix ? `x-model="editItem.location_id"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">— None —</option>
+        <% for (const l of refs.locations) { %><option value="<%= l.id %>"><%= l.name %></option><% } %>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1.5">Sub-Location</label>
+      <select name="sub_location_id" <%- prefix ? `x-model="editItem.sub_location_id"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">— None —</option>
+        <% for (const sl of refs.sub_locations) { %><option value="<%= sl.id %>"><%= sl.name %></option><% } %>
+      </select>
+    </div>
+    <% if (t === 'accessories') { %>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Model Number</label>
+      <input type="text" name="model_number" <%- prefix ? `x-model="editItem.model_number"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <% } %>
+    <% if (t === 'accessories' || t === 'components') { %>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Serial Number</label>
+      <input type="text" name="serial_number" <%- prefix ? `x-model="editItem.serial_number"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"></div>
+    <% } %>
+    <% if (isLicense) { %>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Seats *</label>
+      <input type="number" name="seats" min="1" <%- prefix ? `x-model="editItem.seats"` : 'value="1"' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Expiration Date</label>
+      <input type="date" name="expiration_date" <%- prefix ? `:value="(editItem.expiration_date || '').slice(0, 10)"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Termination Date</label>
+      <input type="date" name="termination_date" <%- prefix ? `:value="(editItem.termination_date || '').slice(0, 10)"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Purchase Date</label>
+      <input type="date" name="purchase_date" <%- prefix ? `:value="(editItem.purchase_date || '').slice(0, 10)"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Purchase Cost</label>
+      <input type="number" step="0.01" name="purchase_cost" <%- prefix ? `x-model="editItem.purchase_cost"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Order Number</label>
+      <input type="text" name="order_number" <%- prefix ? `x-model="editItem.order_number"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">PO Number</label>
+      <input type="text" name="purchase_order_number" <%- prefix ? `x-model="editItem.purchase_order_number"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">License Type</label>
+      <input type="text" name="license_type" <%- prefix ? `x-model="editItem.license_type"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Purchase Type</label>
+      <input type="text" name="purchase_type" <%- prefix ? `x-model="editItem.purchase_type"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div class="md:col-span-2"><label class="block text-xs font-medium text-slate-400 mb-1.5">Product Key</label>
+      <input type="text" name="product_key" <%- prefix ? `x-model="editItem.product_key"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"></div>
+    <div class="md:col-span-2"><label class="block text-xs font-medium text-slate-400 mb-1.5">License Key</label>
+      <textarea name="license_key" rows="2" <%- prefix ? `x-model="editItem.license_key"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono"></textarea></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Licensed To (Name)</label>
+      <input type="text" name="licensed_to_name" <%- prefix ? `x-model="editItem.licensed_to_name"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Licensed To (Email)</label>
+      <input type="email" name="licensed_to_email" <%- prefix ? `x-model="editItem.licensed_to_email"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div class="md:col-span-2 flex flex-wrap gap-4">
+      <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="maintained" value="1" <%- prefix ? `:checked="!!editItem.maintained"` : '' %> class="rounded">Maintained</label>
+      <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="reassignable" value="1" <%- prefix ? `:checked="!!editItem.reassignable"` : 'checked' %> class="rounded">Reassignable</label>
+      <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="checkout_email" value="1" <%- prefix ? `:checked="!!editItem.checkout_email"` : '' %> class="rounded">Checkout Email</label>
+    </div>
+    <% } else { %>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Total Quantity</label>
+      <input type="number" name="total_qty" min="0" <%- prefix ? `x-model="editItem.total_qty"` : 'value="0"' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Minimum Quantity</label>
+      <input type="number" name="min_qty" min="0" <%- prefix ? `x-model="editItem.min_qty"` : 'value="0"' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <% } %>
+    <div class="md:col-span-2"><label class="block text-xs font-medium text-slate-400 mb-1.5">Notes</label>
+      <textarea name="notes" rows="2" <%- prefix ? `x-model="editItem.notes"` : '' %> class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea></div>
+    <% for (const cf of Object.values(refs.custom_fields || {})) { %>
+    <div><label class="block text-xs font-medium text-slate-400 mb-1.5"><%= cf.name %><%= cf.is_required ? ' *' : '' %></label>
+      <input type="<%= cf.field_type === 'number' ? 'number' : (cf.field_type === 'date' ? 'date' : 'text') %>" name="cf_<%= cf.field_key %>" <%= cf.is_required ? 'required' : '' %>
+             class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+    <% } %>
+  </div>
+<% }; %>
+
+<!-- Add modal -->
+<div x-show="addOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-2xl">
+    <h3 class="font-heading font-semibold text-white mb-4">Add <%= page.title %></h3>
+    <form method="POST" action="<%= hams_url('/inventory/' + t) %>" class="space-y-4">
+      <%- csrf_field %>
+      <% renderItemFields('') %>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" @click="addOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm text-white font-medium">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div x-show="editOpen" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center px-4 py-8 overflow-y-auto">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="editOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-2xl">
+    <h3 class="font-heading font-semibold text-white mb-4">Edit Item</h3>
+    <form method="POST" :action="'<%= hams_url('/inventory/' + t) %>/' + editItem.id + '/update'" class="space-y-4">
+      <%- csrf_field %>
+      <% renderItemFields('edit') %>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" @click="editOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm text-white font-medium">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Assign modal -->
+<div x-show="assignOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="assignOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-1"><%= isConsumable ? 'Issue' : (t === 'components' ? 'Install' : 'Assign') %> Item</h3>
+    <p class="text-xs text-slate-500 mb-4" x-text="assignItem.name"></p>
+    <form method="POST" :action="'<%= hams_url('/inventory/' + t) %>/' + assignItem.id + '/assign'" class="space-y-4">
+      <%- csrf_field %>
+      <% if (t === 'components') { %>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Target Asset *</label>
+        <select name="asset_id" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— Select asset —</option>
+          <% for (const a of refs.workflow.assets) { %><option value="<%= a.id %>"><%= a.name %> (<%= a.asset_tag %>)</option><% } %>
+        </select>
+      </div>
+      <% } else if (isLicense) { %>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">User</label>
+        <select name="user_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const u of refs.workflow.users) { %><option value="<%= u.id %>"><%= u.name %> (<%= u.email %>)</option><% } %>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Or Asset</label>
+        <select name="asset_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const a of refs.workflow.assets) { %><option value="<%= a.id %>"><%= a.name %> (<%= a.asset_tag %>)</option><% } %>
+        </select>
+      </div>
+      <% } else { %>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">User *</label>
+        <select name="user_id" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— Select user —</option>
+          <% for (const u of refs.workflow.users) { %><option value="<%= u.id %>"><%= u.name %> (<%= u.email %>)</option><% } %>
+        </select>
+      </div>
+      <% } %>
+      <% if (!isLicense) { %>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Quantity</label>
+        <input type="number" name="quantity" min="1" value="1" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+      </div>
+      <% } %>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Notes</label>
+        <textarea name="notes" rows="2" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" @click="assignOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium">Record Assignment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+</div>

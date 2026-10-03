@@ -1,0 +1,65 @@
+<div x-data="{ addOpen: false }">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">My Requests</h1>
+    <p class="text-sm text-slate-500 mt-1">Asset requests you have submitted</p>
+  </div>
+  <button @click="addOpen = true" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i data-lucide="plus" class="w-4 h-4"></i>New Request</button>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[800px] text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-4">Request</th><th class="px-6 py-4">Target</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Submitted</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% const statusColors = { pending: 'amber', approved: 'emerald', fulfilled: 'blue', rejected: 'rose' }; %>
+        <% for (const r of requests) { %>
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><div class="text-white font-medium"><%= r.title %></div><% if (r.business_justification) { %><div class="text-xs text-slate-500 max-w-sm truncate"><%= r.business_justification %></div><% } %></td>
+          <td class="px-6 py-4 text-slate-400"><%= r.asset_name ? r.asset_name + ' (' + r.asset_tag + ')' : (r.model_name || r.category_name || '—') %></td>
+          <% const c = statusColors[r.status] || 'slate'; %>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-<%= c %>-500/10 text-<%= c %>-400 text-xs capitalize"><%= r.status %></span></td>
+          <td class="px-6 py-4 text-slate-400"><%= formatDate(r.created_at) %></td>
+        </tr>
+        <% } %>
+        <% if (!requests.length) { %><tr><td colspan="4" class="px-6 py-12 text-center text-slate-500">No requests yet.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div x-show="addOpen" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="addOpen = false"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-3xl p-6 w-full max-w-md">
+    <h3 class="font-heading font-semibold text-white mb-4">New Asset Request</h3>
+    <form method="POST" action="<%= hams_url('/my-requests') %>" class="space-y-4">
+      <%- csrf_field %>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Title *</label>
+        <input type="text" name="title" required class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Specific Asset (optional)</label>
+        <select name="asset_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const a of references.assets) { %><option value="<%= a.id %>"><%= a.name %> (<%= a.asset_tag %>)</option><% } %>
+        </select></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Model (optional)</label>
+        <select name="asset_model_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const m of references.models) { %><option value="<%= m.id %>"><%= m.name %></option><% } %>
+        </select></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Category (optional)</label>
+        <select name="category_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          <option value="">— None —</option>
+          <% for (const c of references.categories) { %><option value="<%= c.id %>"><%= c.name %></option><% } %>
+        </select></div>
+      <div><label class="block text-xs font-medium text-slate-400 mb-1.5">Business Justification</label>
+        <textarea name="business_justification" rows="3" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea></div>
+      <div class="flex justify-end gap-2">
+        <button type="button" @click="addOpen = false" class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-sm text-white font-medium">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>

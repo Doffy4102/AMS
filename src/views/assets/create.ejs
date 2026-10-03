@@ -1,0 +1,175 @@
+<div class="max-w-6xl">
+<div class="flex items-center gap-3 mb-8">
+  <a href="<%= hams_url('/assets') %>" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Register Asset</h1>
+    <p class="text-sm text-slate-500 mt-1">Add hardware to the enterprise ledger</p>
+  </div>
+</div>
+
+<form method="POST" action="<%= hams_url('/assets') %>"
+      x-data="assetForm()" @category-changed.window="loadFields($event.detail)" @hams-location-changed.window="loadSubLocations($event.detail)">
+  <%- csrf_field %>
+  <input type="hidden" name="status" value="available">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+        <h2 class="font-heading font-semibold text-white mb-5 flex items-center gap-2"><i data-lucide="fingerprint" class="w-4 h-4 text-blue-400"></i>Core Identity</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Asset Tag *</label>
+            <input type="text" name="asset_tag" required value="<%= asset_tag %>" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Asset Name *</label>
+            <input type="text" name="name" required placeholder="MacBook Pro M3" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Serial Number</label>
+            <div class="relative">
+              <input type="text" name="serial_number" class="w-full px-4 py-2.5 pr-11 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono outline-none focus:border-blue-500">
+              <button type="button" data-barcode-scan="serial_number" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="scan-barcode" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Model Number</label>
+            <input type="text" name="model_number" placeholder="A2991" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Asset Model</label>
+            <select name="asset_model_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+              <option value="">— None —</option>
+              <% for (const m of references.models) { %><option value="<%= m.id %>"><%= m.name %><%= m.model_number ? ' (' + m.model_number + ')' : '' %></option><% } %>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Category</label>
+            <select name="category_id" @change="$dispatch('category-changed', $el.value)" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+              <option value="">— None —</option>
+              <% for (const c of references.categories) { %><option value="<%= c.id %>"><%= c.name %></option><% } %>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Manufacturer</label>
+            <select name="manufacturer_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+              <option value="">— None —</option>
+              <% for (const m of references.manufacturers) { %><option value="<%= m.id %>"><%= m.name %></option><% } %>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Supplier</label>
+            <select name="supplier_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+              <option value="">— None —</option>
+              <% for (const s of references.suppliers) { %><option value="<%= s.id %>"><%= s.name %></option><% } %>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Location</label>
+            <select name="location_id" @change="$dispatch('hams-location-changed', $el.value)" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+              <option value="">— None —</option>
+              <% for (const l of references.locations) { %><option value="<%= l.id %>"><%= l.name %></option><% } %>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Sub-Location</label>
+            <select name="sub_location_id" x-ref="subLocationSelect" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+              <option value="">— None —</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dynamic custom fields -->
+      <div class="bg-hams-card border border-white/5 rounded-3xl p-6" x-show="customFields.length > 0" x-cloak>
+        <h2 class="font-heading font-semibold text-white mb-5 flex items-center gap-2"><i data-lucide="binary" class="w-4 h-4 text-indigo-400"></i>Hardware Specifications</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <template x-for="field in customFields" :key="field.field_key">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5" x-text="field.name + (field.is_required ? ' *' : '')"></label>
+              <input :type="field.field_type === 'number' ? 'number' : (field.field_type === 'date' ? 'date' : 'text')"
+                     :name="'cf_' + field.field_key" :required="!!field.is_required"
+                     class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm outline-none focus:border-blue-500">
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <aside class="space-y-6">
+      <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+        <h2 class="font-heading font-semibold text-white mb-5 flex items-center gap-2"><i data-lucide="clock" class="w-4 h-4 text-emerald-400"></i>Lifecycle</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Status Label</label>
+            <select name="status_label_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+              <% for (const sl of references.status_labels) { %>
+              <option value="<%= sl.id %>" <%= sl.is_default ? 'selected' : '' %>><%= sl.name %></option>
+              <% } %>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Purchase Date</label>
+            <input type="date" name="purchase_date" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Purchase Cost</label>
+            <input type="number" step="0.01" name="purchase_cost" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Warranty Expiry</label>
+            <input type="date" name="warranty_expiry" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Procurement Record</label>
+            <select name="procurement_id" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+              <option value="">No procurement record</option>
+              <% for (const p of references.procurement) { %>
+              <option value="<%= p.id %>">PO: <%= p.po_number || '—' %> / Inv: <%= p.invoice_number || '—' %></option>
+              <% } %>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Notes</label>
+            <textarea name="notes" rows="3" class="w-full px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <a href="<%= hams_url('/assets') %>" class="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-center text-sm text-slate-300">Cancel</a>
+        <button type="submit" class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">Register Asset</button>
+      </div>
+    </aside>
+  </div>
+</form>
+</div>
+
+<script>
+function assetForm() {
+  return {
+    customFields: [],
+    async loadFields(categoryId) {
+      this.customFields = [];
+      if (!categoryId) return;
+      try {
+        const res = await fetch('<%= hams_url('/api/categories') %>/' + categoryId + '/fields');
+        this.customFields = await res.json();
+      } catch (e) { this.customFields = []; }
+    },
+    async loadSubLocations(locationId) {
+      const select = this.$refs.subLocationSelect;
+      select.innerHTML = '<option value="">— None —</option>';
+      if (!locationId) return;
+      try {
+        const res = await fetch('<%= hams_url('/api/locations') %>/' + locationId + '/sub-locations');
+        const rows = await res.json();
+        for (const r of rows) {
+          const opt = document.createElement('option');
+          opt.value = r.id;
+          opt.textContent = r.name + (r.code ? ' (' + r.code + ')' : '');
+          select.appendChild(opt);
+        }
+      } catch (e) {}
+    }
+  };
+}
+</script>

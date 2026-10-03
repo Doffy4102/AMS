@@ -1,0 +1,73 @@
+<div class="max-w-lg mx-auto">
+<div class="mb-6">
+  <h1 class="font-heading text-2xl font-bold text-white">Barcode Scanner</h1>
+  <p class="text-sm text-slate-500 mt-1">Look up assets by barcode, tag, or serial number</p>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl p-6 mb-4">
+  <label class="block text-xs font-medium text-slate-400 mb-2">Barcode / Asset Tag / Serial</label>
+  <div class="flex gap-2">
+    <input id="barcode-input" type="text" placeholder="HAMS-000001 or serial..." data-barcode-target="barcode"
+           class="flex-1 px-4 py-3 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono">
+    <button type="button" data-barcode-scan="barcode" class="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300"><i data-lucide="scan-barcode" class="w-5 h-5"></i></button>
+    <button id="lookup-btn" class="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Lookup</button>
+  </div>
+</div>
+
+<div id="lookup-result" class="hidden bg-hams-card border border-white/5 rounded-3xl p-6">
+  <div class="flex items-start justify-between mb-4">
+    <div>
+      <div id="r-name" class="font-heading text-lg font-bold text-white"></div>
+      <div id="r-tag" class="text-xs font-mono text-slate-500"></div>
+    </div>
+    <span id="r-status" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-white/5"></span>
+  </div>
+  <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs mb-4">
+    <% const rows = [['Serial', 'r-serial'], ['Model', 'r-model'], ['Category', 'r-category'], ['Location', 'r-location'], ['Assigned To', 'r-assigned'], ['Warranty', 'r-warranty']]; %>
+    <% for (const [label, id] of rows) { %>
+    <div><dt class="text-slate-500"><%= label %></dt><dd id="<%= id %>" class="text-slate-200 font-medium"></dd></div>
+    <% } %>
+  </dl>
+  <a id="r-link" href="#" class="inline-flex items-center gap-2 text-sm text-blue-400 hover:underline"><i data-lucide="eye" class="w-4 h-4"></i>View full details</a>
+</div>
+<div id="lookup-error" class="hidden bg-rose-500/10 border border-rose-500/20 rounded-2xl px-5 py-4 text-sm text-rose-300"></div>
+
+<script>
+(function() {
+  var input = document.getElementById('barcode-input');
+  async function lookup() {
+    var code = input.value.trim();
+    if (!code) return;
+    var result = document.getElementById('lookup-result');
+    var errBox = document.getElementById('lookup-error');
+    result.classList.add('hidden'); errBox.classList.add('hidden');
+    try {
+      var res = await fetch('<%= hams_url('/api/barcode/lookup') %>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code, _csrf: document.querySelector('meta[name=csrf-token]').content })
+      });
+      var data = await res.json();
+      if (!data.ok) { errBox.textContent = data.message; errBox.classList.remove('hidden'); return; }
+      var a = data.asset;
+      document.getElementById('r-name').textContent = a.name;
+      document.getElementById('r-tag').textContent = a.asset_tag;
+      document.getElementById('r-status').textContent = a.status;
+      if (a.status_color) { document.getElementById('r-status').style.color = a.status_color; }
+      document.getElementById('r-serial').textContent = a.serial_number;
+      document.getElementById('r-model').textContent = a.model_number;
+      document.getElementById('r-category').textContent = a.category;
+      document.getElementById('r-location').textContent = a.location + (a.sub_location ? ' / ' + a.sub_location : '');
+      document.getElementById('r-assigned').textContent = a.assigned_to || 'Unassigned';
+      document.getElementById('r-warranty').textContent = a.warranty_expiry ? String(a.warranty_expiry).slice(0, 10) : '—';
+      document.getElementById('r-link').href = '<%= hams_url('/assets') %>/' + a.id;
+      result.classList.remove('hidden');
+    } catch (e) {
+      errBox.textContent = 'Lookup failed.'; errBox.classList.remove('hidden');
+    }
+  }
+  document.getElementById('lookup-btn').addEventListener('click', lookup);
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') lookup(); });
+})();
+</script>
+</div>

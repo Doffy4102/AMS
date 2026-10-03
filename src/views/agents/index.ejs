@@ -1,0 +1,147 @@
+<div class="space-y-6" x-data="{ tab: 'windows' }">
+  <div>
+    <h1 class="text-3xl font-heading font-semibold text-white mb-1">Endpoint Agents</h1>
+    <p class="text-slate-400">Install a lightweight agent on each machine — it reports full system details on first run, then a heartbeat every 15 minutes.</p>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <p class="text-xs text-slate-400 uppercase tracking-wider mb-2">Total Agents</p>
+      <p class="text-3xl font-heading font-semibold text-white"><%= stats.total %></p>
+      <p class="text-xs text-slate-500 mt-1">machines enrolled</p>
+    </div>
+    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
+      <p class="text-xs text-emerald-300 uppercase tracking-wider mb-2">Online</p>
+      <p class="text-3xl font-heading font-semibold text-emerald-400"><%= stats.online %></p>
+      <p class="text-xs text-slate-500 mt-1">beat within 20 min</p>
+    </div>
+    <div class="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5">
+      <p class="text-xs text-amber-300 uppercase tracking-wider mb-2">Stale</p>
+      <p class="text-3xl font-heading font-semibold text-amber-400"><%= stats.stale %></p>
+      <p class="text-xs text-slate-500 mt-1">20–45 min ago</p>
+    </div>
+    <div class="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5">
+      <p class="text-xs text-rose-300 uppercase tracking-wider mb-2">Offline</p>
+      <p class="text-3xl font-heading font-semibold text-rose-400"><%= stats.offline %></p>
+      <p class="text-xs text-slate-500 mt-1">no recent beat</p>
+    </div>
+  </div>
+
+  <!-- Download + enrollment -->
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="w-9 h-9 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center"><i data-lucide="download" class="w-5 h-5"></i></span>
+      <h2 class="text-lg font-semibold text-white">Download &amp; Install Agent</h2>
+    </div>
+
+    <div class="flex flex-wrap gap-3 mb-5">
+      <a href="<%= hamsUrl('/agents/download/windows') %>"
+         class="flex items-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">
+        <i data-lucide="monitor" class="w-4 h-4"></i> Download for Windows (.ps1)
+      </a>
+      <a href="<%= hamsUrl('/agents/download/mac') %>"
+         class="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium">
+        <i data-lucide="laptop" class="w-4 h-4"></i> Download for macOS (.sh)
+      </a>
+    </div>
+
+    <!-- Server URL + enrollment key -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+      <div>
+        <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">Server URL</label>
+        <div class="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-slate-300 font-mono break-all"><%= serverUrl %></div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">Enrollment Key</label>
+        <div class="flex gap-2">
+          <div class="flex-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-slate-300 font-mono break-all"><%= enrollmentKey %></div>
+          <form method="POST" action="<%= hamsUrl('/agents/keys/regenerate') %>"
+                data-confirm="Regenerate the enrollment key? Machines already enrolled keep working; only new installs will need the new key.">
+            <button class="h-full px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-sm" title="Regenerate key"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Install instructions tabs -->
+    <div class="flex gap-2 mb-3 border-b border-white/10">
+      <button @click="tab='windows'" :class="tab==='windows' ? 'text-blue-400 border-blue-500' : 'text-slate-400 border-transparent'"
+              class="px-3 py-2 text-sm font-medium border-b-2 -mb-px">Windows</button>
+      <button @click="tab='mac'" :class="tab==='mac' ? 'text-blue-400 border-blue-500' : 'text-slate-400 border-transparent'"
+              class="px-3 py-2 text-sm font-medium border-b-2 -mb-px">macOS</button>
+    </div>
+    <div x-show="tab==='windows'" class="text-sm text-slate-300 space-y-2">
+      <p>1. Download <span class="font-mono text-slate-200">hams-agent.ps1</span> (button above).</p>
+      <p>2. Open <strong>PowerShell as Administrator</strong> in the download folder.</p>
+      <p>3. Run the installer — it registers a scheduled task that reports every 15 minutes:</p>
+      <pre class="px-4 py-3 rounded-lg bg-black/40 border border-white/10 text-xs font-mono text-emerald-300 overflow-x-auto">powershell -ExecutionPolicy Bypass -File .\hams-agent.ps1 -Install</pre>
+      <p class="text-slate-500">The key and server URL are already embedded in the file. First run enrolls the machine; every run after that sends a heartbeat.</p>
+    </div>
+    <div x-show="tab==='mac'" x-cloak class="text-sm text-slate-300 space-y-2">
+      <p>1. Download <span class="font-mono text-slate-200">hams-agent.sh</span> (button above).</p>
+      <p>2. Open <strong>Terminal</strong> in the download folder.</p>
+      <p>3. Make it executable and install the launchd agent (reports every 15 minutes):</p>
+      <pre class="px-4 py-3 rounded-lg bg-black/40 border border-white/10 text-xs font-mono text-emerald-300 overflow-x-auto">chmod +x hams-agent.sh
+./hams-agent.sh install</pre>
+      <p class="text-slate-500">The key and server URL are already embedded in the file. First run enrolls the Mac; every run after that sends a heartbeat.</p>
+    </div>
+  </div>
+
+  <!-- Agent roster -->
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+    <h2 class="text-lg font-semibold text-white mb-4">Enrolled Machines (<%= agents.length %>)</h2>
+    <% if (agents.length === 0) { %>
+    <p class="text-sm text-slate-400 py-8 text-center">No agents enrolled yet. Download and install the agent above — enrolled machines will appear here automatically.</p>
+    <% } else { %>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="border-b border-white/10">
+          <tr class="text-slate-400 text-xs uppercase tracking-wider">
+            <th class="text-left py-3 px-3 font-medium">Status</th>
+            <th class="text-left py-3 px-3 font-medium">Hostname</th>
+            <th class="text-left py-3 px-3 font-medium">OS</th>
+            <th class="text-left py-3 px-3 font-medium">User</th>
+            <th class="text-left py-3 px-3 font-medium">IP</th>
+            <th class="text-left py-3 px-3 font-medium">Serial</th>
+            <th class="text-left py-3 px-3 font-medium">Asset</th>
+            <th class="text-left py-3 px-3 font-medium">Last Heartbeat</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          <% agents.forEach(a => {
+            const dot = a.live_status === 'online' ? 'bg-emerald-500' : a.live_status === 'stale' ? 'bg-amber-500' : 'bg-rose-500';
+            const badge = a.live_status === 'online' ? 'bg-emerald-500/20 text-emerald-300'
+                        : a.live_status === 'stale' ? 'bg-amber-500/20 text-amber-300' : 'bg-rose-500/20 text-rose-300';
+            const plat = a.platform === 'windows' ? 'monitor' : a.platform === 'mac' ? 'laptop' : 'server';
+          %>
+          <tr class="hover:bg-white/5 transition">
+            <td class="py-3 px-3">
+              <span class="inline-flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full <%= dot %>"></span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-semibold <%= badge %>"><%= a.live_status.toUpperCase() %></span>
+              </span>
+            </td>
+            <td class="py-3 px-3 text-white font-medium">
+              <span class="inline-flex items-center gap-2"><i data-lucide="<%= plat %>" class="w-4 h-4 text-slate-400"></i><%= a.hostname || '—' %></span>
+            </td>
+            <td class="py-3 px-3 text-slate-300"><%= a.os || '—' %><% if (a.os_version) { %> <span class="text-slate-500">(<%= a.os_version %>)</span><% } %></td>
+            <td class="py-3 px-3 text-slate-300"><%= a.logged_in_user || '—' %></td>
+            <td class="py-3 px-3 text-slate-300 font-mono text-xs"><%= a.ip_address || '—' %></td>
+            <td class="py-3 px-3 text-slate-400 font-mono text-xs"><%= a.serial_number || '—' %></td>
+            <td class="py-3 px-3">
+              <% if (a.asset_id) { %>
+              <a href="<%= hamsUrl('/assets/' + a.asset_id) %>" class="text-blue-400 hover:underline"><%= a.asset_tag || ('#' + a.asset_id) %></a>
+              <% } else { %><span class="text-slate-500">—</span><% } %>
+            </td>
+            <td class="py-3 px-3 text-slate-300">
+              <%= a.last_heartbeat_at ? new Date(a.last_heartbeat_at).toLocaleString() : 'never' %>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</div>

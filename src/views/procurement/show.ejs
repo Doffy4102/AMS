@@ -1,0 +1,42 @@
+<div class="flex items-center gap-3 mb-8">
+  <a href="<%= hams_url('/procurement') %>" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white"><%= record.po_number || 'Procurement #' + record.id %></h1>
+    <p class="text-sm text-slate-500 mt-1"><%= record.vendor_name || 'No vendor' %></p>
+  </div>
+  <a href="<%= hams_url('/procurement/' + record.id + '/edit') %>" class="ml-auto flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300"><i data-lucide="edit-3" class="w-4 h-4"></i>Edit</a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="bg-hams-card border border-white/5 rounded-3xl p-6">
+    <h2 class="font-heading font-semibold text-white mb-4">Record Details</h2>
+    <dl class="space-y-3 text-sm">
+      <div class="flex justify-between"><dt class="text-slate-500">Invoice #</dt><dd class="text-white font-mono"><%= record.invoice_number || '—' %></dd></div>
+      <div class="flex justify-between"><dt class="text-slate-500">Purchase Date</dt><dd class="text-white"><%= formatDate(record.purchase_date) || '—' %></dd></div>
+      <div class="flex justify-between"><dt class="text-slate-500">Amount</dt><dd class="text-white"><%= record.total_amount ? Number(record.total_amount).toFixed(2) + ' ' + (record.currency || 'USD') : '—' %></dd></div>
+      <% if (record.invoice_file_path) { %><div class="flex justify-between"><dt class="text-slate-500">Invoice File</dt><dd><a href="/<%= record.invoice_file_path %>" target="_blank" class="text-blue-400 hover:underline">Open</a></dd></div><% } %>
+      <% if (record.po_file_path) { %><div class="flex justify-between"><dt class="text-slate-500">PO File</dt><dd><a href="/<%= record.po_file_path %>" target="_blank" class="text-blue-400 hover:underline">Open</a></dd></div><% } %>
+    </dl>
+    <% if (record.notes) { %><p class="mt-4 pt-4 border-t border-white/5 text-sm text-slate-400"><%= record.notes %></p><% } %>
+  </div>
+
+  <div class="lg:col-span-2 bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+    <h2 class="font-heading font-semibold text-white px-6 pt-6 pb-4">Linked Assets</h2>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-6 py-3">Asset</th><th class="px-6 py-3">Tag</th><th class="px-6 py-3">Serial</th><th class="px-6 py-3">Status</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% for (const a of assets) { %>
+        <tr>
+          <td class="px-6 py-3"><a href="<%= hams_url('/assets/' + a.id) %>" class="text-white hover:text-blue-400"><%= a.name %></a></td>
+          <td class="px-6 py-3 font-mono text-slate-400"><%= a.asset_tag %></td>
+          <td class="px-6 py-3 font-mono text-slate-400"><%= a.serial_number || '—' %></td>
+          <td class="px-6 py-3"><span class="px-2 py-0.5 rounded text-xs" style="background: <%= (a.status_color || '#3b82f6') %>22; color: <%= a.status_color || '#3b82f6' %>;"><%= a.status_name || '—' %></span></td>
+        </tr>
+        <% } %>
+        <% if (!assets.length) { %><tr><td colspan="4" class="px-6 py-10 text-center text-slate-500">No assets registered against this record yet. Register assets and select this procurement record.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>

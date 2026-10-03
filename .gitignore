@@ -1,0 +1,9 @@
+node_modules/
+.env
+storage/logs/*.log
+storage/sessions/*
+storage/temp/*
+storage/backups/*
+storage/reports/*
+public/uploads/*
+!public/uploads/.gitkeep

@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{ darkMode: document.documentElement.classList.contains('dark') }" :class="{ 'dark': darkMode, 'light': !darkMode }">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HAMS Enterprise | Enterprise IT Operations</title>
+<meta name="theme-color" content="#4f46e5">
+<meta name="csrf-token" content="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+<link rel="manifest" href="/manifest.json">
+<script>
+(function() {
+  var theme = localStorage.getItem('hams-theme') || 'dark';
+  document.documentElement.classList.add(theme === 'light' ? 'light' : 'dark');
+})();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: {
+    colors: { hams: { bg: '#0a0a0b', card: '#141417', border: '#27272a', primary: '#3b82f6', accent: '#6366f1' } },
+    fontFamily: { sans: ['Inter', 'sans-serif'], heading: ['Outfit', 'sans-serif'] }
+  }}
+};
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root { --hams-bg: #0a0a0b; --hams-card: #141417; --hams-border: rgba(255,255,255,.05); --hams-text: #e2e8f0; --hams-text-muted: #94a3b8; }
+.light { --hams-bg: #f8fafc; --hams-card: #ffffff; --hams-border: rgba(15,23,42,.08); --hams-text: #0f172a; --hams-text-muted: #64748b; }
+body { background: var(--hams-bg); color: var(--hams-text); font-family: 'Inter', sans-serif; }
+h1,h2,h3,.font-heading { font-family: 'Outfit', sans-serif; }
+.glass { background: var(--hams-card); backdrop-filter: blur(20px); border-bottom: 1px solid var(--hams-border); }
+.table-responsive { overflow-x: auto; border-radius: 1.5rem; scrollbar-width: none; }
+.table-responsive::-webkit-scrollbar { display: none; }
+[x-cloak] { display: none !important; }
+.light .bg-hams-bg { background-color: #f8fafc !important; }
+.light .bg-hams-card { background-color: #ffffff !important; }
+.light .text-white { color: #0f172a !important; }
+.light .text-slate-200 { color: #1e293b !important; }
+.light .text-slate-300 { color: #334155 !important; }
+.light .text-slate-400 { color: #64748b !important; }
+.light .text-slate-500 { color: #64748b !important; }
+.light .border-white\/5 { border-color: rgba(15,23,42,.08) !important; }
+.light .bg-white\/5 { background-color: rgba(15,23,42,.04) !important; }
+.light .divide-white\/5 > * { border-color: rgba(15,23,42,.06) !important; }
+.light input, .light select, .light textarea { color-scheme: light; }
+.dark input, .dark select, .dark textarea { color-scheme: dark; }
+input, select, textarea { background: var(--hams-bg); border: 1px solid var(--hams-border); color: var(--hams-text); }
+</style>
+</head>
+<body class="bg-hams-bg text-slate-200 antialiased overflow-x-hidden"
+      x-data="{ sidebarOpen: window.innerWidth >= 1024, isMobile: window.innerWidth < 1024 }"
+      @resize.window="isMobile = window.innerWidth < 1024; if (!isMobile) sidebarOpen = true">
+
+<!-- Command palette -->
+<div x-data="{ open: false, query: '' }" @keydown.window.ctrl.k.prevent="open = true; $nextTick(() => $refs.searchInput && $refs.searchInput.focus())"
+     @open-command-palette.window="open = true; $nextTick(() => $refs.searchInput && $refs.searchInput.focus())"
+     @keydown.escape.window="open = false" x-cloak>
+  <div x-show="open" class="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="open = false"></div>
+    <div class="relative w-full max-w-xl bg-hams-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+      <input x-ref="searchInput" x-model="query" type="text" placeholder="Search assets, users, actions..."
+             class="w-full px-5 py-4 bg-transparent border-0 border-b border-white/5 outline-none text-sm">
+      <div class="p-3 text-xs text-slate-500 uppercase tracking-wider px-5">Navigation &amp; Quick Actions</div>
+      <div class="pb-3 max-h-80 overflow-y-auto">
+        
+        
+        <a href="http://localhost:3000/assets/create" x-show="!query || 'add new asset create hardware'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center"><i data-lucide="plus" class="w-4 h-4"></i></span>
+          Add New Asset
+        </a>
+        
+        <a href="http://localhost:3000/assets" x-show="!query || 'assets catalog hardware list'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+          Assets Catalog
+        </a>
+        
+        <a href="http://localhost:3000/inventory/licenses" x-show="!query || 'license software seats'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-pink-500/15 text-pink-400 flex items-center justify-center"><i data-lucide="key-round" class="w-4 h-4"></i></span>
+          License Manager
+        </a>
+        
+        <a href="http://localhost:3000/inventory" x-show="!query || 'stock inventory consumables accessories'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center"><i data-lucide="package" class="w-4 h-4"></i></span>
+          Stock &amp; Inventory
+        </a>
+        
+        <a href="http://localhost:3000/maintenance" x-show="!query || 'operations maintenance repair'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-orange-500/15 text-orange-400 flex items-center justify-center"><i data-lucide="wrench" class="w-4 h-4"></i></span>
+          Operations &amp; Maintenance
+        </a>
+        
+        <a href="http://localhost:3000/archive" x-show="!query || 'archive deleted restore'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center"><i data-lucide="archive" class="w-4 h-4"></i></span>
+          Archive &amp; Soft-Deletes
+        </a>
+        
+        <a href="http://localhost:3000/settings/monitoring" x-show="!query || 'audit monitoring health'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center"><i data-lucide="activity" class="w-4 h-4"></i></span>
+          Audit &amp; Monitoring
+        </a>
+        
+      </div>
+      <div class="px-5 py-2 border-t border-white/5 text-[10px] text-slate-500 flex justify-between">
+        <span>Enterprise Search Engine v1.0</span><span>&uarr;&darr; to navigate &middot; ENTER to select</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flex h-screen overflow-hidden">
+  <!-- Mobile backdrop -->
+  <div x-show="isMobile && sidebarOpen" class="fixed inset-0 bg-black/50 z-30 lg:hidden" @click="sidebarOpen = false" x-cloak></div>
+
+  <!-- Sidebar -->
+  <aside class="fixed lg:static inset-y-0 left-0 z-40 w-72 bg-hams-card border-r border-white/5 flex flex-col transition-transform duration-200"
+         :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:-translate-x-full lg:hidden'" x-show="sidebarOpen || !isMobile" x-cloak>
+    <div class="h-20 md:h-24 flex items-center gap-3 px-6 border-b border-white/5 shrink-0">
+      
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg font-heading">H</div>
+      
+      <div class="min-w-0">
+        <div class="font-heading font-semibold text-white truncate">HAMS Enterprise</div>
+        <div class="text-[11px] text-slate-500 truncate">Enterprise Asset Management</div>
+      </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-4 py-5 space-y-6 text-sm">
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Core Systems</div>
+        <a href="http://localhost:3000" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="layout-dashboard" class="w-4 h-4"></i>Dashboard</a>
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Administration</div>
+        
+        <a href="http://localhost:3000/users" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="users" class="w-4 h-4"></i>Enterprise Directory</a>
+        <a href="http://localhost:3000/users/ldap" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="network" class="w-4 h-4"></i>LDAP Directory &amp; Sync</a>
+        
+        
+        <a href="http://localhost:3000/settings/roles" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="shield-check" class="w-4 h-4"></i>Roles &amp; Permissions</a>
+        
+        
+        <a href="http://localhost:3000/settings/identity" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="fingerprint" class="w-4 h-4"></i>Identity &amp; SSO</a>
+        <a href="http://localhost:3000/settings/security" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="shield" class="w-4 h-4"></i>Security Center</a>
+        <a href="http://localhost:3000/agents" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="radio" class="w-4 h-4"></i>Endpoint Agents</a>
+        <a href="http://localhost:3000/settings/branding" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="settings" class="w-4 h-4"></i>All Settings</a>
+        
+      </div>
+      
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Asset Management</div>
+        
+        <a href="http://localhost:3000/new-joinees" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="user-check" class="w-4 h-4"></i>New Joinees</a>
+        <a href="http://localhost:3000/assets" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>Hardware</a>
+        <a href="http://localhost:3000/procurement" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="receipt" class="w-4 h-4"></i>Procurement</a>
+        <a href="http://localhost:3000/assets/scan" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="qr-code" class="w-4 h-4"></i>Mobile Scanner</a>
+        <a href="http://localhost:3000/portal/scan" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="scan-barcode" class="w-4 h-4"></i>Barcode Scanner</a>
+        
+        <a href="http://localhost:3000/maintenance" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="wrench" class="w-4 h-4"></i>Maintenance</a>
+        
+        <a href="http://localhost:3000/inventory/accessories" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="mouse" class="w-4 h-4"></i>Accessories</a>
+        <a href="http://localhost:3000/inventory/components" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="cpu" class="w-4 h-4"></i>Components</a>
+        
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">License Management</div>
+        <a href="http://localhost:3000/inventory/licenses" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Licenses</a>
+        <a href="http://localhost:3000/software" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="app-window" class="w-4 h-4"></i>Software</a>
+        <a href="http://localhost:3000/license-allocation" class="flex items-center gap-3 px-3 py-2 rounded-xl bg-blue-600/10 text-blue-500 font-medium border-l-2 border-blue-500"><i data-lucide="gauge" class="w-4 h-4"></i>License Allocation &amp; Utilization</a>
+        
+        <a href="http://localhost:3000/licenses/setup" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i>License Setup</a>
+        
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Inventory Module</div>
+        <a href="http://localhost:3000/inventory/consumables" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="package-minus" class="w-4 h-4"></i>Consumables</a>
+        <a href="http://localhost:3000/inventory-setup" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="boxes" class="w-4 h-4"></i>Inventory Setup</a>
+        <a href="http://localhost:3000/stock-movements" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="arrow-left-right" class="w-4 h-4"></i>Stock Movements</a>
+      </div>
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Analytics</div>
+        
+        <a href="http://localhost:3000/reports" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="file-bar-chart" class="w-4 h-4"></i>Reports</a>
+        
+        
+        <a href="http://localhost:3000/import" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="file-up" class="w-4 h-4"></i>Import Center</a>
+        
+        
+        <a href="http://localhost:3000/requests" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="clipboard-list" class="w-4 h-4"></i>Requests</a>
+        
+      </div>
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">My Workspace</div>
+        <a href="http://localhost:3000/portal/my-assets" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>My Assets</a>
+        <a href="http://localhost:3000/portal/requests" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="message-square" class="w-4 h-4"></i>My Requests</a>
+      </div>
+      
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <header class="h-20 md:h-24 glass flex items-center gap-4 px-4 md:px-8 shrink-0 z-20">
+      <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="menu" class="w-5 h-5"></i></button>
+      <button @click="$dispatch('open-command-palette')"
+              class="flex-1 max-w-md flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/5 text-slate-500 text-sm hover:border-white/10">
+        <i data-lucide="search" class="w-4 h-4"></i>
+        <span class="hidden md:inline">Search everything&hellip;</span><span class="md:hidden">Search&hellip;</span>
+        <kbd class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-white/10 hidden md:inline">Ctrl + K</kbd>
+      </button>
+      <div class="ml-auto flex items-center gap-2">
+        
+        <button id="hams-ai-btn" title="HAMS AI Assistant" class="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-violet-600/20 to-blue-600/20 border border-violet-500/30 hover:border-violet-400/60 text-violet-300 text-sm font-medium">
+          <i data-lucide="sparkles" class="w-4 h-4"></i><span class="hidden md:inline">Ask AI</span>
+        </button>
+        
+        
+        <a href="http://localhost:3000/settings/branding" class="p-2.5 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="settings" class="w-5 h-5"></i></a>
+        
+        <button @click="darkMode = !darkMode; localStorage.setItem('hams-theme', darkMode ? 'dark' : 'light')" class="p-2.5 rounded-xl hover:bg-white/5 text-slate-400">
+          <i data-lucide="moon" class="w-5 h-5" x-show="darkMode"></i>
+          <i data-lucide="sun" class="w-5 h-5" x-show="!darkMode" x-cloak></i>
+        </button>
+        
+        <div x-data="{ createNewOpen: false }" class="relative" @click.outside="createNewOpen = false">
+          <button @click="createNewOpen = !createNewOpen" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">
+            <i data-lucide="plus" class="w-4 h-4"></i><span class="hidden md:inline">Create New</span>
+          </button>
+          <div x-show="createNewOpen" x-cloak x-transition class="absolute right-0 mt-2 w-56 bg-hams-card border border-white/10 rounded-2xl shadow-xl py-2 z-[150]">
+            <a href="http://localhost:3000/assets/create" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>Hardware</a>
+            <a href="http://localhost:3000/inventory/licenses" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Licenses</a>
+            
+            <a href="http://localhost:3000/inventory/accessories" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="mouse" class="w-4 h-4"></i>Accessories</a>
+            <a href="http://localhost:3000/inventory/consumables" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="package-minus" class="w-4 h-4"></i>Consumables</a>
+            <a href="http://localhost:3000/inventory/components" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="cpu" class="w-4 h-4"></i>Components</a>
+            
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/users" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="users" class="w-4 h-4"></i>Users</a>
+            
+          </div>
+        </div>
+        
+        
+        <div x-data="{ profileOpen: false }" class="relative" @click.outside="profileOpen = false">
+          <button @click="profileOpen = !profileOpen" class="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-white/5">
+            <img src="https://ui-avatars.com/api/?name=Administrator&amp;background=3b82f6&amp;color=fff"
+                 class="w-9 h-9 rounded-xl object-cover" alt="avatar">
+            <span class="hidden md:block text-sm font-medium text-white max-w-[120px] truncate">Administrator</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 transition-transform" :class="profileOpen && 'rotate-180'"></i>
+          </button>
+          <div x-show="profileOpen" x-cloak x-transition class="absolute right-0 mt-2 w-60 bg-hams-card border border-white/10 rounded-2xl shadow-xl py-2 z-[150]">
+            <a href="http://localhost:3000/portal/my-assets" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>My Assets</a>
+            <a href="http://localhost:3000/portal/requests" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="message-square" class="w-4 h-4"></i>My Requests</a>
+            
+            <a href="http://localhost:3000/requests" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="clipboard-list" class="w-4 h-4"></i>Requests</a>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/profile" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="user" class="w-4 h-4"></i>Edit Profile</a>
+            <a href="http://localhost:3000/profile" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key" class="w-4 h-4"></i>Change Password</a>
+            <button @click="darkMode = !darkMode; localStorage.setItem('hams-theme', darkMode ? 'dark' : 'light')" class="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5">
+              <i data-lucide="moon" class="w-4 h-4"></i>Dark Mode <span class="ml-auto text-xs text-slate-500" x-text="darkMode ? 'ON' : 'OFF'"></span>
+            </button>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/settings/api-tokens" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Manage API keys</a>
+            <a href="http://localhost:3000/logs" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="scroll-text" class="w-4 h-4"></i>Log Viewer</a>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/logout" class="flex items-center gap-3 px-4 py-2 text-sm text-rose-400 hover:bg-rose-500/10"><i data-lucide="log-out" class="w-4 h-4"></i>Logout</a>
+          </div>
+        </div>
+        
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto px-4 md:px-8 py-6 md:py-8">
+      
+      <div class="space-y-6">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-heading font-semibold text-white mb-1">License Allocation &amp; Utilization</h1>
+      <p class="text-slate-400">Who holds which software licenses, by client and market</p>
+    </div>
+    <p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5"></i>Tip: click the Allocated / Not Allocated cards to filter the table</p>
+  </div>
+
+  <!-- Filters (drive every section, no page reload) -->
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-5 flex flex-wrap items-end gap-4">
+    <div>
+      <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">Client</label>
+      <select id="la-client" class="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-200 min-w-[220px]">
+        <option value="">All Clients</option>
+        <option value="Athena" >Athena</option><option value="Cambia" >Cambia</option><option value="Cigna" >Cigna</option><option value="CVS Health" >CVS Health</option><option value="Devita" >Devita</option><option value="Elevance Health" >Elevance Health</option><option value="GE Healthcare" >GE Healthcare</option><option value="Humana" >Humana</option><option value="Kaiser Permanente" >Kaiser Permanente</option><option value="UnitedHealth Group" >UnitedHealth Group</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">Market</label>
+      <select id="la-market" class="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-200 min-w-[180px]">
+        <option value="">All Markets</option>
+        <option value="Functions (IT)" >Functions (IT)</option><option value="HHP" >HHP</option><option value="HLS" >HLS</option><option value="HMT1" >HMT1</option><option value="HMT2" >HMT2</option><option value="HPR" >HPR</option>
+      </select>
+    </div>
+    <span id="la-loading" class="hidden items-center gap-2 text-sm text-slate-400">
+      <svg class="animate-spin w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
+      Updating…
+    </span>
+  </div>
+
+  <!-- KPI cards: Total resets the table filter; the other two filter it -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+    <button data-kpi="all" class="la-kpi text-left bg-white/5 border border-white/5 rounded-2xl p-6 hover:border-blue-500/40 transition">
+      <div class="flex items-center gap-3 mb-2">
+        <span class="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center"><i data-lucide="app-window" class="w-5 h-5"></i></span>
+        <span class="text-sm text-slate-400">Total Software</span>
+      </div>
+      <div id="la-kpi-total" class="text-3xl font-semibold text-white">—</div>
+      <div class="text-xs text-slate-500 mt-1">unique software titles</div>
+    </button>
+    <button data-kpi="allocated" class="la-kpi text-left bg-white/5 border border-white/5 rounded-2xl p-6 hover:border-emerald-500/40 transition">
+      <div class="flex items-center gap-3 mb-2">
+        <span class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center"><i data-lucide="user-check" class="w-5 h-5"></i></span>
+        <span class="text-sm text-slate-400">Allocated</span>
+      </div>
+      <div id="la-kpi-allocated" class="text-3xl font-semibold text-white">—</div>
+      <div class="text-xs text-slate-500 mt-1">license records with a user</div>
+    </button>
+    <button data-kpi="unallocated" class="la-kpi text-left bg-white/5 border border-white/5 rounded-2xl p-6 hover:border-amber-500/40 transition">
+      <div class="flex items-center gap-3 mb-2">
+        <span class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center"><i data-lucide="user-x" class="w-5 h-5"></i></span>
+        <span class="text-sm text-slate-400">Not Allocated</span>
+      </div>
+      <div id="la-kpi-unallocated" class="text-3xl font-semibold text-white">—</div>
+      <div class="text-xs text-slate-500 mt-1">license records without a user</div>
+    </button>
+  </div>
+
+  <!-- Bar chart: software vs quantity -->
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+    <h2 class="text-lg font-semibold text-white mb-1">Software vs Quantity</h2>
+    <p class="text-xs text-slate-500 mb-4">Total licensed quantity per software for the selected client and market</p>
+    <div class="overflow-y-auto" style="max-height: 260px;">
+      <div id="la-chart" class="w-full"></div>
+    </div>
+    <div id="la-chart-empty" class="hidden py-12 text-center text-sm text-slate-400">
+      <i data-lucide="bar-chart-2" class="w-8 h-8 mx-auto mb-3 opacity-40"></i>
+      No license data for the selected filters
+    </div>
+  </div>
+
+  <!-- Allocation table -->
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-lg font-semibold text-white mb-1" id="la-table-title">Allocation Records</h2>
+        <p class="text-xs text-slate-500"><span id="la-table-count">0</span> record(s) shown</p>
+      </div>
+      <button id="la-table-reset" class="hidden px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-slate-300">Show all records</button>
+    </div>
+    <div class="overflow-y-auto rounded-xl border border-white/5" style="max-height: 420px;">
+      <table class="w-full text-sm">
+        <thead class="sticky top-0 bg-hams-card">
+          <tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+            <th class="px-5 py-3">User Name</th>
+            <th class="px-5 py-3" id="la-col-software">Software</th>
+            <th class="px-5 py-3">Qty</th>
+            <th class="px-5 py-3">Client</th>
+            <th class="px-5 py-3">Market</th>
+            <th class="px-5 py-3">Status</th>
+          </tr>
+        </thead>
+        <tbody id="la-table-body" class="divide-y divide-white/5"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ───────────────────────── Budget & Cost Forecast ───────────────────────── -->
+  <div class="pt-2 border-t border-white/5">
+    <div class="flex flex-wrap items-end justify-between gap-4 mt-6 mb-1">
+      <div>
+        <h2 class="text-2xl font-heading font-semibold text-white mb-1">Budget &amp; Cost Forecast</h2>
+        <p class="text-slate-400 text-sm">Spending, savings and budget prediction from current software costs</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <p id="bf-rate-note" class="text-xs text-slate-500"></p>
+        <div id="bf-currency-toggle" class="flex items-center rounded-lg overflow-hidden border border-white/10 text-xs font-medium">
+          <button type="button" data-currency="INR" class="px-4 py-1.5 bg-blue-600 text-white">₹ INR</button>
+          <button type="button" data-currency="USD" class="px-4 py-1.5 bg-white/5 text-slate-300">$ USD</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-5 flex flex-wrap items-end gap-4">
+    <div>
+      <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">Software <span class="normal-case text-slate-600">(optional)</span></label>
+      <select id="bf-software" class="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-200 min-w-[240px]">
+        <option value="">All Software</option>
+        <option value=".NET Developer Bundle" >.NET Developer Bundle</option><option value="2FA for Jira" >2FA for Jira</option><option value="7 Edit" >7 Edit</option><option value="Commvault FEDCB Data Protection" >Commvault FEDCB Data Protection</option><option value="CP Rhapsody IDE" >CP Rhapsody IDE</option><option value="Director Suite" >Director Suite</option><option value="Q-S-VMDR" >Q-S-VMDR</option><option value="Traqplan Timeline" >Traqplan Timeline</option>
+      </select>
+    </div>
+    <div id="bf-missing-price-banner" class="hidden ml-auto flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
+      <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
+      <span id="bf-missing-price-text"></span>
+    </div>
+  </div>
+
+  <!-- 8 KPI cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Total Software</div>
+      <div id="bf-kpi-total-software" class="text-2xl font-semibold text-white">—</div>
+    </div>
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Total Licenses</div>
+      <div id="bf-kpi-total-licenses" class="text-2xl font-semibold text-white">—</div>
+    </div>
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Allocated Licenses</div>
+      <div id="bf-kpi-allocated" class="text-2xl font-semibold text-emerald-400">—</div>
+    </div>
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Unallocated Licenses</div>
+      <div id="bf-kpi-unallocated" class="text-2xl font-semibold text-amber-400">—</div>
+    </div>
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Total License Spending</div>
+      <div id="bf-kpi-spending" class="text-2xl font-semibold text-white">—</div>
+    </div>
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Spending / Allocated License</div>
+      <div id="bf-kpi-per-license" class="text-2xl font-semibold text-white">—</div>
+    </div>
+    <div class="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-5">
+      <div class="text-xs text-violet-300 mb-1 flex items-center gap-1.5"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i>Estimated Budget Requirement</div>
+      <div id="bf-kpi-budget" class="text-2xl font-semibold text-white">—</div>
+      <div id="bf-kpi-budget-note" class="text-[11px] text-violet-300/70 mt-1"></div>
+    </div>
+    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
+      <div class="text-xs text-emerald-300 mb-1 flex items-center gap-1.5"><i data-lucide="piggy-bank" class="w-3.5 h-3.5"></i>Estimated Savings</div>
+      <div id="bf-kpi-savings" class="text-2xl font-semibold text-white">—</div>
+      <div id="bf-kpi-savings-note" class="text-[11px] text-emerald-300/70 mt-1"></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <!-- Software Cost Analysis -->
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
+        <h2 class="text-lg font-semibold text-white">Software Cost Analysis</h2>
+        <select id="bf-sort" class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-200">
+          <option value="cost_desc">Highest Cost</option>
+          <option value="cost_asc">Lowest Cost</option>
+          <option value="qty_desc">Highest Quantity</option>
+          <option value="savings_desc">Highest Savings Opportunity</option>
+        </select>
+      </div>
+      <p class="text-xs text-slate-500 mb-4">Total cost (price × quantity) per software</p>
+      <div id="bf-cost-chart" class="w-full" style="height: 300px;"></div>
+      <div id="bf-cost-chart-empty" class="hidden py-12 text-center text-sm text-slate-400">
+        <i data-lucide="bar-chart-2" class="w-8 h-8 mx-auto mb-3 opacity-40"></i>
+        No cost data for the selected filters
+      </div>
+    </div>
+
+    <!-- Budget Prediction -->
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+      <h2 class="text-lg font-semibold text-white mb-1">Budget Prediction</h2>
+      <p class="text-xs text-slate-500 mb-4">Current spending → predicted spending → potential savings</p>
+      <div id="bf-forecast-chart" class="w-full" style="height: 300px;"></div>
+      <p id="bf-growth-note" class="text-[11px] text-slate-500 mt-2"></p>
+    </div>
+  </div>
+
+  <!-- Editable Software Price table -->
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-white mb-1">Software Prices</h2>
+      <p class="text-xs text-slate-500">Editable unit price used in every cost/budget calculation above — saving refreshes the whole dashboard, no page reload</p>
+    </div>
+    <div class="overflow-y-auto rounded-xl border border-white/5" style="max-height: 320px;">
+      <table class="w-full text-sm">
+        <thead class="sticky top-0 bg-hams-card">
+          <tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+            <th class="px-5 py-3">Software Name</th>
+            <th class="px-5 py-3">Current Price</th>
+            <th class="px-5 py-3">Currency</th>
+            <th class="px-5 py-3">Last Updated</th>
+            <th class="px-5 py-3 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody id="bf-price-body" class="divide-y divide-white/5"></tbody>
+      </table>
+    </div>
+    <div id="bf-price-pagination" class="flex items-center justify-between mt-3 text-xs text-slate-500"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var DATA_URL = "http://localhost:3000/license-allocation/data";
+  var PRICE_URL = "http://localhost:3000/license-allocation/prices";
+  var CSRF_TOKEN = "a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b";
+  var data = {"allocation":{"kpis":{"totalSoftware":8,"allocated":674,"notAllocated":326},"chart":[{"name":".NET Developer Bundle","qty":739},{"name":"Commvault FEDCB Data Protection","qty":710},{"name":"Director Suite","qty":644},{"name":"Traqplan Timeline","qty":644},{"name":"Q-S-VMDR","qty":577},{"name":"2FA for Jira","qty":571},{"name":"CP Rhapsody IDE","qty":570},{"name":"7 Edit","qty":540}],"records":[{"user":"Aazreen .","software":".NET Developer Bundle","qty":8,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Aazreen .","software":"CP Rhapsody IDE","qty":6,"market":"HPR","client":"Kaiser Permanente","allocated":true},{"user":"Abhijeet Kumar","software":"7 Edit","qty":4,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Abhijeet Kumar","software":"Director Suite","qty":4,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Abhijit Jagtap","software":".NET Developer Bundle","qty":8,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Abhijit Jagtap","software":"Q-S-VMDR","qty":5,"market":"HPR","client":"Cigna","allocated":true},{"user":"Abhijit Jagtap","software":"Traqplan Timeline","qty":8,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Abhilash Molugu","software":"Commvault FEDCB Data Protection","qty":3,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Abhilash Reddy Gowni","software":"Traqplan Timeline","qty":8,"market":"HLS","client":"Athena","allocated":true},{"user":"Abhinav Garg","software":"CP Rhapsody IDE","qty":1,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Abhinav Garg","software":"CP Rhapsody IDE","qty":4,"market":"HMT2","client":"Athena","allocated":true},{"user":"Abhinav Garg","software":"Q-S-VMDR","qty":1,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Abhinav Garg","software":"Traqplan Timeline","qty":2,"market":"HHP","client":"Devita","allocated":true},{"user":"Abhishek Sharma","software":"Commvault FEDCB Data Protection","qty":7,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Abhishek Sharma","software":"Director Suite","qty":3,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Abhishek Sharma","software":"Q-S-VMDR","qty":8,"market":"HHP","client":"Cambia","allocated":true},{"user":"Adarsh Sharma","software":".NET Developer Bundle","qty":6,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Adarsh Sharma","software":"CP Rhapsody IDE","qty":4,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Adarsh Sharma","software":"Director Suite","qty":0,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Aditi Shewale","software":"Commvault FEDCB Data Protection","qty":10,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Aditi Shewale","software":"Commvault FEDCB Data Protection","qty":3,"market":"HPR","client":"UnitedHealth Group","allocated":true},{"user":"Aditi Shewale","software":"Q-S-VMDR","qty":7,"market":"HPR","client":"Devita","allocated":true},{"user":"Aditya Shetty","software":"7 Edit","qty":0,"market":"HMT2","client":"Humana","allocated":true},{"user":"Akhil Kumar Palde","software":"Commvault FEDCB Data Protection","qty":5,"market":"HPR","client":"Kaiser Permanente","allocated":true},{"user":"Akhil Kumar Palde","software":"CP Rhapsody IDE","qty":10,"market":"HPR","client":"Elevance Health","allocated":true},{"user":"Akhil Kumar Palde","software":"CP Rhapsody IDE","qty":7,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Akhil Kumar Palde","software":"Traqplan Timeline","qty":0,"market":"HHP","client":"Cigna","allocated":true},{"user":"Akila Sivakumar","software":"Director Suite","qty":9,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Akshay Aamre","software":".NET Developer Bundle","qty":9,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Akshay Aamre","software":"2FA for Jira","qty":5,"market":"HLS","client":"Cigna","allocated":true},{"user":"Akshay Aamre","software":"Q-S-VMDR","qty":1,"market":"HHP","client":"Cigna","allocated":true},{"user":"Akshay Aamre","software":"Traqplan Timeline","qty":10,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Alamelumangai Gopalsamy","software":"7 Edit","qty":1,"market":"HMT1","client":"Devita","allocated":true},{"user":"Alamelumangai Gopalsamy","software":"Director Suite","qty":7,"market":"HMT2","client":"Devita","allocated":true},{"user":"Amandeep Singh  Bassi","software":"2FA for Jira","qty":9,"market":"Functions (IT)","client":"Cigna","allocated":true},{"user":"Amandeep Singh  Bassi","software":"2FA for Jira","qty":8,"market":"HMT1","client":"Humana","allocated":true},{"user":"Amaresh Panda","software":"7 Edit","qty":5,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Amber Williams","software":"Commvault FEDCB Data Protection","qty":5,"market":"HPR","client":"Athena","allocated":true},{"user":"Amit Chauhan","software":"Commvault FEDCB Data Protection","qty":8,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Amit Chauhan","software":"Commvault FEDCB Data Protection","qty":6,"market":"HMT1","client":"Devita","allocated":true},{"user":"Amit Chauhan","software":"Traqplan Timeline","qty":0,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Amit Wagle","software":"CP Rhapsody IDE","qty":7,"market":"HLS","client":"Elevance Health","allocated":true},{"user":"Amol Neharkar","software":"2FA for Jira","qty":0,"market":"HMT2","client":"Devita","allocated":true},{"user":"Amol Neharkar","software":"Q-S-VMDR","qty":9,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Anand Jujjavarapu","software":"Commvault FEDCB Data Protection","qty":8,"market":"HLS","client":"Devita","allocated":true},{"user":"Anand Jujjavarapu","software":"Director Suite","qty":4,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Anand Jujjavarapu","software":"Q-S-VMDR","qty":0,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Anand Jujjavarapu","software":"Traqplan Timeline","qty":0,"market":"HLS","client":"Elevance Health","allocated":true},{"user":"Anand Surisetty Kumar","software":"Commvault FEDCB Data Protection","qty":0,"market":"HMT1","client":"Devita","allocated":true},{"user":"Aneeta Mahalik","software":"Director Suite","qty":7,"market":"HHP","client":"Athena","allocated":true},{"user":"Aniket Sanyal","software":"Q-S-VMDR","qty":10,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Ankit Yadav","software":"2FA for Jira","qty":7,"market":"HLS","client":"Cambia","allocated":true},{"user":"Ankit Yadav","software":"2FA for Jira","qty":8,"market":"HMT2","client":"Devita","allocated":true},{"user":"Ankit Yadav","software":"7 Edit","qty":6,"market":"HMT1","client":"Athena","allocated":true},{"user":"Anusha  Cherukula","software":".NET Developer Bundle","qty":5,"market":"HHP","client":"Humana","allocated":true},{"user":"Anusha  Cherukula","software":"CP Rhapsody IDE","qty":6,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Aparna Dandamudi","software":".NET Developer Bundle","qty":8,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Aparna Dandamudi","software":".NET Developer Bundle","qty":4,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Aparna Dandamudi","software":"7 Edit","qty":6,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Aparna Dandamudi","software":"Commvault FEDCB Data Protection","qty":3,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Aparna Dandamudi","software":"Director Suite","qty":5,"market":"Functions (IT)","client":"Cigna","allocated":true},{"user":"Aprajeeta Anumeh","software":".NET Developer Bundle","qty":2,"market":"HLS","client":"Cigna","allocated":true},{"user":"Aprajeeta Anumeh","software":"2FA for Jira","qty":5,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Aprajeeta Anumeh","software":"2FA for Jira","qty":1,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Arti Mukherjee Saini","software":".NET Developer Bundle","qty":0,"market":"HMT2","client":"Athena","allocated":true},{"user":"Ashutosh Tiwari","software":"CP Rhapsody IDE","qty":0,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Ashutosh Vishwakarma","software":"2FA for Jira","qty":6,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":true},{"user":"Ashutosh Vishwakarma","software":"Commvault FEDCB Data Protection","qty":4,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Ashutosh Vishwakarma","software":"CP Rhapsody IDE","qty":7,"market":"HHP","client":"Cambia","allocated":true},{"user":"Aswini Kurapati","software":"Commvault FEDCB Data Protection","qty":10,"market":"HMT1","client":"Humana","allocated":true},{"user":"Aswini Kurapati","software":"CP Rhapsody IDE","qty":3,"market":"HMT1","client":"Athena","allocated":true},{"user":"Aswini Kurapati","software":"Director Suite","qty":4,"market":"HPR","client":"Devita","allocated":true},{"user":"Avinash Eppalapally","software":"2FA for Jira","qty":9,"market":"Functions (IT)","client":"Elevance Health","allocated":true},{"user":"Avinash Eppalapally","software":"Commvault FEDCB Data Protection","qty":6,"market":"HMT1","client":"Devita","allocated":true},{"user":"Avinash Eppalapally","software":"Commvault FEDCB Data Protection","qty":4,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Avinash Eppalapally","software":"Q-S-VMDR","qty":3,"market":"HHP","client":"UnitedHealth Group","allocated":true},{"user":"Avinash Eppalapally","software":"Q-S-VMDR","qty":10,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Ayush Agrawal","software":"CP Rhapsody IDE","qty":3,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Baljeet Singh","software":"Commvault FEDCB Data Protection","qty":2,"market":"HLS","client":"UnitedHealth Group","allocated":true},{"user":"Baljeet Singh","software":"Director Suite","qty":9,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":true},{"user":"Bhagyashree Girish Bharambe","software":"Director Suite","qty":8,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Bhakya Raj Paulpandi","software":"CP Rhapsody IDE","qty":1,"market":"HLS","client":"Devita","allocated":true},{"user":"Bhakya Raj Paulpandi","software":"Traqplan Timeline","qty":0,"market":"HHP","client":"Humana","allocated":true},{"user":"Bhargavkumar Pottella","software":"7 Edit","qty":7,"market":"HPR","client":"UnitedHealth Group","allocated":true},{"user":"Bhargavkumar Pottella","software":"Traqplan Timeline","qty":7,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Bhavika Pradeep Shirodkar","software":".NET Developer Bundle","qty":7,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Bhavika Pradeep Shirodkar","software":"2FA for Jira","qty":0,"market":"HMT2","client":"Devita","allocated":true},{"user":"Bhavika Pradeep Shirodkar","software":"Traqplan Timeline","qty":3,"market":"HLS","client":"Devita","allocated":true},{"user":"Bhavika Pradeep Shirodkar","software":"Traqplan Timeline","qty":2,"market":"HMT2","client":"Athena","allocated":true},{"user":"Bhavika Pradeep Shirodkar","software":"Traqplan Timeline","qty":5,"market":"HMT1","client":"Athena","allocated":true},{"user":"Bhavya Banga","software":".NET Developer Bundle","qty":0,"market":"HMT2","client":"Cigna","allocated":true},{"user":"Bhavya Banga","software":"Traqplan Timeline","qty":0,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Bhavya Banga","software":"Traqplan Timeline","qty":9,"market":"HLS","client":"Devita","allocated":true},{"user":"Bhooshan Sapre","software":".NET Developer Bundle","qty":9,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Bhooshan Sapre","software":"Traqplan Timeline","qty":5,"market":"HMT1","client":"Devita","allocated":true},{"user":"Brooke Bullimore","software":"7 Edit","qty":2,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Brooke Bullimore","software":"Commvault FEDCB Data Protection","qty":4,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Brooke Bullimore","software":"Commvault FEDCB Data Protection","qty":2,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Brooke Bullimore","software":"Q-S-VMDR","qty":6,"market":"HLS","client":"Cigna","allocated":true},{"user":"Carrie J Keller","software":".NET Developer Bundle","qty":3,"market":"HMT1","client":"Humana","allocated":true},{"user":"Carrie J Keller","software":"Director Suite","qty":5,"market":"HMT1","client":"Athena","allocated":true},{"user":"Carrie J Keller","software":"Director Suite","qty":4,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Carrie J Keller","software":"Traqplan Timeline","qty":5,"market":"HMT2","client":"Athena","allocated":true},{"user":"Chaitanya Maruthi","software":"CP Rhapsody IDE","qty":5,"market":"HMT2","client":"Devita","allocated":true},{"user":"Chaitanya Maruthi","software":"Director Suite","qty":10,"market":"HPR","client":"Elevance Health","allocated":true},{"user":"Chaitanya Maruthi","software":"Q-S-VMDR","qty":7,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Chaitanya Nandamuri","software":".NET Developer Bundle","qty":8,"market":"HLS","client":"Cambia","allocated":true},{"user":"Chaitanya Nandamuri","software":"2FA for Jira","qty":9,"market":"HLS","client":"Cambia","allocated":true},{"user":"Chaitanya Nandamuri","software":"Commvault FEDCB Data Protection","qty":6,"market":"HLS","client":"UnitedHealth Group","allocated":true},{"user":"Chaitanya Nandamuri","software":"Director Suite","qty":9,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Chintan Mehta","software":"7 Edit","qty":5,"market":"HMT1","client":"Elevance Health","allocated":true},{"user":"Chintan Mehta","software":"CP Rhapsody IDE","qty":0,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Chintan Mehta","software":"Traqplan Timeline","qty":2,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Christopher St. Germain","software":".NET Developer Bundle","qty":6,"market":"HMT1","client":"Athena","allocated":true},{"user":"Christopher St. Germain","software":"7 Edit","qty":6,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Dastagiri Nossam","software":"2FA for Jira","qty":5,"market":"HLS","client":"Cambia","allocated":true},{"user":"Dastagiri Nossam","software":"2FA for Jira","qty":4,"market":"HLS","client":"Cigna","allocated":true},{"user":"Dastagiri Nossam","software":"CP Rhapsody IDE","qty":2,"market":"HMT1","client":"Devita","allocated":true},{"user":"Dastagiri Nossam","software":"CP Rhapsody IDE","qty":10,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Dastagiri Nossam","software":"Director Suite","qty":9,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Deborah A Berry","software":".NET Developer Bundle","qty":9,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Deborah A Berry","software":".NET Developer Bundle","qty":7,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Deborah A Berry","software":"Commvault FEDCB Data Protection","qty":3,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Deborah A Berry","software":"CP Rhapsody IDE","qty":2,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Deborah A Berry","software":"Director Suite","qty":9,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Deborah A Berry","software":"Q-S-VMDR","qty":3,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Debra Droz","software":"CP Rhapsody IDE","qty":2,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Debra Droz","software":"CP Rhapsody IDE","qty":1,"market":"HPR","client":"Cambia","allocated":true},{"user":"Deepa Katla","software":".NET Developer Bundle","qty":8,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Deepa Katla","software":"2FA for Jira","qty":5,"market":"HLS","client":"Devita","allocated":true},{"user":"Deepak Varma","software":"CP Rhapsody IDE","qty":10,"market":"HPR","client":"Devita","allocated":true},{"user":"Deepak Varma","software":"Q-S-VMDR","qty":0,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Deepankar Mishra","software":".NET Developer Bundle","qty":4,"market":"HHP","client":"CVS Health","allocated":true},{"user":"Deepankar Mishra","software":"2FA for Jira","qty":3,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Deepankar Mishra","software":"Director Suite","qty":5,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Deepthi Bodavula","software":"2FA for Jira","qty":8,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Deepthi Bodavula","software":"7 Edit","qty":2,"market":"HMT2","client":"Athena","allocated":true},{"user":"Deepthi Bodavula","software":"Commvault FEDCB Data Protection","qty":1,"market":"HMT1","client":"Athena","allocated":true},{"user":"Deepthi Bodavula","software":"Commvault FEDCB Data Protection","qty":4,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Deepthi Bodavula","software":"Director Suite","qty":8,"market":"HPR","client":"Humana","allocated":true},{"user":"Deepthi Bodavula","software":"Q-S-VMDR","qty":7,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Deepti Devendra Bare","software":"Q-S-VMDR","qty":9,"market":"HPR","client":"Devita","allocated":true},{"user":"Devesh Rajadhyaksha","software":"Q-S-VMDR","qty":0,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Devesh Rajadhyaksha","software":"Traqplan Timeline","qty":9,"market":"HMT1","client":"Athena","allocated":true},{"user":"Dhanshri Kantilal Ghule","software":".NET Developer Bundle","qty":2,"market":"HHP","client":"Cambia","allocated":true},{"user":"Dhanshri Kantilal Ghule","software":"Commvault FEDCB Data Protection","qty":5,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Dhanshri Kantilal Ghule","software":"CP Rhapsody IDE","qty":0,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Dharmesh Gohil","software":"Director Suite","qty":0,"market":"HHP","client":"Humana","allocated":true},{"user":"Divya G","software":".NET Developer Bundle","qty":1,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Divya G","software":"2FA for Jira","qty":5,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Divya G","software":"7 Edit","qty":4,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Durga Prasanth Vanapalli","software":".NET Developer Bundle","qty":6,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Durga Prasanth Vanapalli","software":".NET Developer Bundle","qty":9,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Durga Prasanth Vanapalli","software":".NET Developer Bundle","qty":2,"market":"HHP","client":"Athena","allocated":true},{"user":"Durga Prasanth Vanapalli","software":"7 Edit","qty":3,"market":"HPR","client":"Kaiser Permanente","allocated":true},{"user":"Durga Prasanth Vanapalli","software":"7 Edit","qty":2,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Durga Prasanth Vanapalli","software":"7 Edit","qty":3,"market":"HLS","client":"UnitedHealth Group","allocated":true},{"user":"Durga Prasanth Vanapalli","software":"Traqplan Timeline","qty":10,"market":"HMT1","client":"Elevance Health","allocated":true},{"user":"Durga Rao Namana","software":"2FA for Jira","qty":10,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":true},{"user":"Durga Rao Namana","software":"Q-S-VMDR","qty":9,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Durga Rao Namana","software":"Traqplan Timeline","qty":6,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Durga Rao Namana","software":"Traqplan Timeline","qty":3,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Dwadasi Venkata Sastry","software":"7 Edit","qty":5,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Dwadasi Venkata Sastry","software":"Director Suite","qty":6,"market":"HLS","client":"Devita","allocated":true},{"user":"Fauzia Dinesh","software":".NET Developer Bundle","qty":6,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Fauzia Dinesh","software":"Director Suite","qty":6,"market":"HPR","client":"Athena","allocated":true},{"user":"Fauzia Dinesh","software":"Traqplan Timeline","qty":7,"market":"Functions (IT)","client":"Elevance Health","allocated":true},{"user":"Gaurav Sarma","software":".NET Developer Bundle","qty":9,"market":"HMT2","client":"Kaiser Permanente","allocated":true},{"user":"Gaurav Sarma","software":"2FA for Jira","qty":10,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Gaurav Sarma","software":"Commvault FEDCB Data Protection","qty":4,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Gaurav Sarma","software":"CP Rhapsody IDE","qty":1,"market":"HLS","client":"Devita","allocated":true},{"user":"Gayatri Inguva","software":".NET Developer Bundle","qty":0,"market":"HLS","client":"Cambia","allocated":true},{"user":"Gayatri Inguva","software":"7 Edit","qty":10,"market":"HMT2","client":"Athena","allocated":true},{"user":"Gayatri Inguva","software":"Commvault FEDCB Data Protection","qty":2,"market":"HPR","client":"Humana","allocated":true},{"user":"Gayatri Inguva","software":"CP Rhapsody IDE","qty":8,"market":"HHP","client":"Cambia","allocated":true},{"user":"Geetha Usha Sri  Bade","software":"7 Edit","qty":1,"market":"HMT1","client":"Devita","allocated":true},{"user":"Geetha Usha Sri  Bade","software":"CP Rhapsody IDE","qty":5,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Gopi Krishna Peedi","software":"7 Edit","qty":2,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Gopi Krishna Peedi","software":"CP Rhapsody IDE","qty":8,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Gopi Krishna Peedi","software":"Traqplan Timeline","qty":10,"market":"HLS","client":"Athena","allocated":true},{"user":"Hadi Zanddizari","software":"Traqplan Timeline","qty":2,"market":"HLS","client":"Humana","allocated":true},{"user":"Harish Nalla","software":"7 Edit","qty":0,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Harish Nalla","software":"Q-S-VMDR","qty":10,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Harshal Deolekar","software":"Commvault FEDCB Data Protection","qty":3,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Harshal Deolekar","software":"Director Suite","qty":4,"market":"HMT1","client":"Devita","allocated":true},{"user":"Harshal Deolekar","software":"Director Suite","qty":2,"market":"HLS","client":"Elevance Health","allocated":true},{"user":"Harshini Degala","software":"Director Suite","qty":7,"market":"HMT2","client":"Devita","allocated":true},{"user":"Hemant Patel","software":".NET Developer Bundle","qty":1,"market":"HHP","client":"CVS Health","allocated":true},{"user":"Hemant Patel","software":"CP Rhapsody IDE","qty":4,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Hemant Patel","software":"CP Rhapsody IDE","qty":0,"market":"HMT2","client":"Devita","allocated":true},{"user":"Hemanth Macha","software":"2FA for Jira","qty":5,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Hemanth Macha","software":"7 Edit","qty":1,"market":"HHP","client":"Athena","allocated":true},{"user":"Hemanth Macha","software":"Commvault FEDCB Data Protection","qty":9,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Hemanth Macha","software":"Q-S-VMDR","qty":9,"market":"HHP","client":"UnitedHealth Group","allocated":true},{"user":"Hemanth Macha","software":"Traqplan Timeline","qty":7,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Hrishikesh Borkar","software":"CP Rhapsody IDE","qty":5,"market":"HMT1","client":"Elevance Health","allocated":true},{"user":"Hrishikesh Borkar","software":"Director Suite","qty":6,"market":"HMT1","client":"Athena","allocated":true},{"user":"Hrishikesh Borkar","software":"Q-S-VMDR","qty":2,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Indra Goel","software":".NET Developer Bundle","qty":1,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Indra Goel","software":"7 Edit","qty":8,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":true},{"user":"Indra Goel","software":"CP Rhapsody IDE","qty":0,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Indra Goel","software":"Q-S-VMDR","qty":3,"market":"HLS","client":"Cigna","allocated":true},{"user":"Jacquelyn Ungarino","software":".NET Developer Bundle","qty":2,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Jacquelyn Ungarino","software":"Commvault FEDCB Data Protection","qty":6,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Jacquelyn Ungarino","software":"Q-S-VMDR","qty":3,"market":"HHP","client":"Devita","allocated":true},{"user":"Jarvis Ross","software":"7 Edit","qty":6,"market":"HLS","client":"UnitedHealth Group","allocated":true},{"user":"Jathin Sanghvi","software":".NET Developer Bundle","qty":1,"market":"Functions (IT)","client":"Elevance Health","allocated":true},{"user":"Jayprakash Yadav","software":"Commvault FEDCB Data Protection","qty":0,"market":"HMT2","client":"Devita","allocated":true},{"user":"Jayprakash Yadav","software":"Traqplan Timeline","qty":5,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Jernisha Jerome","software":"2FA for Jira","qty":1,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Jernisha Jerome","software":"Q-S-VMDR","qty":7,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Jessica Molina","software":".NET Developer Bundle","qty":7,"market":"HLS","client":"Athena","allocated":true},{"user":"Jessica Molina","software":"CP Rhapsody IDE","qty":2,"market":"HPR","client":"Devita","allocated":true},{"user":"John O'Day","software":".NET Developer Bundle","qty":4,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"John O'Day","software":"7 Edit","qty":3,"market":"HLS","client":"Devita","allocated":true},{"user":"Julie Schipper","software":"2FA for Jira","qty":10,"market":"HMT2","client":"Humana","allocated":true},{"user":"Julie Schipper","software":"7 Edit","qty":4,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Julie Schipper","software":"Director Suite","qty":3,"market":"HHP","client":"Cigna","allocated":true},{"user":"Julie Schipper","software":"Director Suite","qty":7,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Julie Schipper","software":"Q-S-VMDR","qty":3,"market":"HHP","client":"Athena","allocated":true},{"user":"Kajal Sharma","software":"2FA for Jira","qty":6,"market":"HHP","client":"Devita","allocated":true},{"user":"Kajal Sharma","software":"Director Suite","qty":7,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Kajal Sharma","software":"Traqplan Timeline","qty":6,"market":"HMT1","client":"Athena","allocated":true},{"user":"Kamala Rasagna Tenneti","software":".NET Developer Bundle","qty":8,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Kamala Rasagna Tenneti","software":"Commvault FEDCB Data Protection","qty":9,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Kamala Rasagna Tenneti","software":"Director Suite","qty":4,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Kamala Rasagna Tenneti","software":"Q-S-VMDR","qty":2,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Kamala Rasagna Tenneti","software":"Traqplan Timeline","qty":1,"market":"HLS","client":"Elevance Health","allocated":true},{"user":"Karthik P","software":"Commvault FEDCB Data Protection","qty":4,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Kashni Hinduja M","software":"2FA for Jira","qty":2,"market":"HLS","client":"Devita","allocated":true},{"user":"Katherine Fetter","software":"Commvault FEDCB Data Protection","qty":2,"market":"HMT2","client":"Athena","allocated":true},{"user":"Katherine Fetter","software":"Commvault FEDCB Data Protection","qty":5,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Katherine Fetter","software":"Director Suite","qty":0,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Katherine Fetter","software":"Director Suite","qty":9,"market":"Functions (IT)","client":"Elevance Health","allocated":true},{"user":"Katherine Fetter","software":"Traqplan Timeline","qty":10,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Kayla Bentz","software":".NET Developer Bundle","qty":10,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Kayla Bentz","software":"2FA for Jira","qty":5,"market":"HHP","client":"Cigna","allocated":true},{"user":"Kayla Bentz","software":"7 Edit","qty":9,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Kayla Bentz","software":"Director Suite","qty":5,"market":"HPR","client":"Cambia","allocated":true},{"user":"Kendal Piazza","software":"Commvault FEDCB Data Protection","qty":8,"market":"HPR","client":"Elevance Health","allocated":true},{"user":"Kendal Piazza","software":"Q-S-VMDR","qty":5,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Komal Sunil Tannu","software":".NET Developer Bundle","qty":4,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Komal Sunil Tannu","software":"7 Edit","qty":2,"market":"HMT2","client":"Cigna","allocated":true},{"user":"Komal Sunil Tannu","software":"Director Suite","qty":10,"market":"HHP","client":"Humana","allocated":true},{"user":"Kommu Pracheen Kumar","software":".NET Developer Bundle","qty":0,"market":"HMT2","client":"Athena","allocated":true},{"user":"Kommu Pracheen Kumar","software":"Commvault FEDCB Data Protection","qty":8,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":true},{"user":"Kommu Pracheen Kumar","software":"Traqplan Timeline","qty":7,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Kommu Pracheen Kumar","software":"Traqplan Timeline","qty":3,"market":"HHP","client":"Cigna","allocated":true},{"user":"Kumar Saurav","software":"7 Edit","qty":8,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Kumar Saurav","software":"Commvault FEDCB Data Protection","qty":7,"market":"HMT1","client":"Athena","allocated":true},{"user":"Kumar Saurav","software":"Commvault FEDCB Data Protection","qty":2,"market":"HHP","client":"Cigna","allocated":true},{"user":"Kumar Saurav","software":"Commvault FEDCB Data Protection","qty":10,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Kumar Saurav","software":"Director Suite","qty":5,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Kumar Saurav","software":"Q-S-VMDR","qty":9,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Kuran Nayee","software":"Director Suite","qty":8,"market":"HHP","client":"Elevance Health","allocated":true},{"user":"Kuran Nayee","software":"Q-S-VMDR","qty":5,"market":"HLS","client":"UnitedHealth Group","allocated":true},{"user":"Kuran Nayee","software":"Q-S-VMDR","qty":8,"market":"Functions (IT)","client":"Cigna","allocated":true},{"user":"Kuran Nayee","software":"Traqplan Timeline","qty":3,"market":"HLS","client":"Cigna","allocated":true},{"user":"Kuran Nayee","software":"Traqplan Timeline","qty":10,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Lakshmi Sai Sarath Bhusarapu","software":"7 Edit","qty":4,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Leela Kowshik Reddy Baki","software":"Commvault FEDCB Data Protection","qty":0,"market":"HMT2","client":"Kaiser Permanente","allocated":true},{"user":"Lloyd Dsouza","software":"2FA for Jira","qty":4,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Madhan Suresh","software":"CP Rhapsody IDE","qty":1,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Madhan Suresh","software":"Traqplan Timeline","qty":2,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Madison Buenaventura","software":"Director Suite","qty":7,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Madison Buenaventura","software":"Q-S-VMDR","qty":10,"market":"HLS","client":"Devita","allocated":true},{"user":"Mahamood Pasha Mohammad","software":".NET Developer Bundle","qty":2,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Mahamud Sayyad","software":"Traqplan Timeline","qty":1,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Mahamud Sayyad","software":"Traqplan Timeline","qty":9,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Mahesh Kagitha","software":"CP Rhapsody IDE","qty":4,"market":"HHP","client":"UnitedHealth Group","allocated":true},{"user":"Mahesh Kagitha","software":"CP Rhapsody IDE","qty":0,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Mahesh Kagitha","software":"Director Suite","qty":4,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Mahesh Muktala","software":".NET Developer Bundle","qty":1,"market":"HPR","client":"Athena","allocated":true},{"user":"Mahesh Muktala","software":".NET Developer Bundle","qty":10,"market":"HLS","client":"Humana","allocated":true},{"user":"Mahesh Muktala","software":"7 Edit","qty":2,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Mahesh Muktala","software":"Traqplan Timeline","qty":3,"market":"HLS","client":"Cambia","allocated":true},{"user":"Mahesh Nisar","software":"CP Rhapsody IDE","qty":2,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Mahesh Nisar","software":"Director Suite","qty":8,"market":"HPR","client":"Cambia","allocated":true},{"user":"Mahesh Nisar","software":"Traqplan Timeline","qty":0,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Mahesh Reddy Kundur","software":"Commvault FEDCB Data Protection","qty":9,"market":"HPR","client":"Cambia","allocated":true},{"user":"Mahesh Reddy Kundur","software":"Commvault FEDCB Data Protection","qty":4,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Mangesh Naik","software":"7 Edit","qty":1,"market":"HMT1","client":"Elevance Health","allocated":true},{"user":"Mangesh Naik","software":"Traqplan Timeline","qty":10,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Mani Chandana Madireddy","software":".NET Developer Bundle","qty":6,"market":"HPR","client":"UnitedHealth Group","allocated":true},{"user":"Mani Chandana Madireddy","software":"2FA for Jira","qty":1,"market":"HMT2","client":"Elevance Health","allocated":true},{"user":"Mani Krishna Devavarapu","software":"2FA for Jira","qty":6,"market":"HHP","client":"Athena","allocated":true},{"user":"Mani Krishna Devavarapu","software":"2FA for Jira","qty":2,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Mani Krishna Devavarapu","software":"7 Edit","qty":9,"market":"HLS","client":"UnitedHealth Group","allocated":true},{"user":"Mani Krishna Devavarapu","software":"CP Rhapsody IDE","qty":4,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Mani Krishna Devavarapu","software":"Traqplan Timeline","qty":4,"market":"HLS","client":"Devita","allocated":true},{"user":"Manikanta Jakkam Setty","software":".NET Developer Bundle","qty":10,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Manikanta Jakkam Setty","software":".NET Developer Bundle","qty":4,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Manikanta Jakkam Setty","software":"Commvault FEDCB Data Protection","qty":8,"market":"HPR","client":"Cigna","allocated":true},{"user":"Manisha Choudhury","software":"Commvault FEDCB Data Protection","qty":1,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Manisha Choudhury","software":"CP Rhapsody IDE","qty":8,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Manisha Katla","software":".NET Developer Bundle","qty":8,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Manisha Katla","software":"Director Suite","qty":10,"market":"HHP","client":"Athena","allocated":true},{"user":"Manisha Kunduru","software":"Q-S-VMDR","qty":1,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Manisha Kunduru","software":"Traqplan Timeline","qty":1,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Maria Amana Saveriyar","software":".NET Developer Bundle","qty":7,"market":"HHP","client":"Devita","allocated":true},{"user":"Mayur Sharad Kasat","software":"CP Rhapsody IDE","qty":5,"market":"HPR","client":"Athena","allocated":true},{"user":"Mayur Sharad Kasat","software":"Traqplan Timeline","qty":0,"market":"HHP","client":"Athena","allocated":true},{"user":"Meeniga Pranavi","software":"2FA for Jira","qty":1,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Meeniga Pranavi","software":"2FA for Jira","qty":2,"market":"HLS","client":"Athena","allocated":true},{"user":"Meeniga Pranavi","software":"7 Edit","qty":2,"market":"HMT2","client":"Kaiser Permanente","allocated":true},{"user":"Meeniga Pranavi","software":"Director Suite","qty":7,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Meeniga Pranavi","software":"Q-S-VMDR","qty":10,"market":"HMT1","client":"Devita","allocated":true},{"user":"Megha Varshney","software":".NET Developer Bundle","qty":2,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Megha Varshney","software":"CP Rhapsody IDE","qty":7,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Megha Varshney","software":"CP Rhapsody IDE","qty":2,"market":"HPR","client":"Cambia","allocated":true},{"user":"Megha Varshney","software":"Director Suite","qty":9,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Michael Benedetto","software":".NET Developer Bundle","qty":6,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Michael Benedetto","software":".NET Developer Bundle","qty":3,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Michael Benedetto","software":"2FA for Jira","qty":6,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Michael Benedetto","software":"CP Rhapsody IDE","qty":9,"market":"HLS","client":"UnitedHealth Group","allocated":true},{"user":"Michael Benedetto","software":"Traqplan Timeline","qty":2,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Michael Tucker","software":"CP Rhapsody IDE","qty":3,"market":"HHP","client":"Devita","allocated":true},{"user":"Michael Tucker","software":"CP Rhapsody IDE","qty":7,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Michael Tucker","software":"Director Suite","qty":4,"market":"HLS","client":"Athena","allocated":true},{"user":"Michael Vaughn","software":"7 Edit","qty":1,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Michael Vaughn","software":"CP Rhapsody IDE","qty":3,"market":"HLS","client":"Elevance Health","allocated":true},{"user":"Michael Vaughn","software":"Q-S-VMDR","qty":4,"market":"HMT1","client":"Devita","allocated":true},{"user":"Mike Jones","software":".NET Developer Bundle","qty":1,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Mike Jones","software":".NET Developer Bundle","qty":0,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Minhwa Lee","software":"7 Edit","qty":5,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Minhwa Lee","software":"7 Edit","qty":7,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Minhwa Lee","software":"Director Suite","qty":8,"market":"Functions (IT)","client":"Elevance Health","allocated":true},{"user":"Mohammed Ayyub  Ali","software":"2FA for Jira","qty":6,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Mohan Vadamala","software":".NET Developer Bundle","qty":10,"market":"HHP","client":"Athena","allocated":true},{"user":"Mohan Vadamala","software":"CP Rhapsody IDE","qty":4,"market":"HPR","client":"Cambia","allocated":true},{"user":"Mokshitha  Dwarasala","software":"2FA for Jira","qty":1,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Mokshitha  Dwarasala","software":"Q-S-VMDR","qty":3,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Mukesh Pandey","software":"CP Rhapsody IDE","qty":1,"market":"HLS","client":"Athena","allocated":true},{"user":"Mukesh Pandey","software":"CP Rhapsody IDE","qty":8,"market":"HMT2","client":"Humana","allocated":true},{"user":"Mukesh Pandey","software":"CP Rhapsody IDE","qty":5,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Mukesh Pandey","software":"CP Rhapsody IDE","qty":6,"market":"HLS","client":"UnitedHealth Group","allocated":true},{"user":"Mukesh Pandey","software":"Q-S-VMDR","qty":6,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Nageswarao Kancharla","software":"2FA for Jira","qty":3,"market":"HLS","client":"Cigna","allocated":true},{"user":"Nageswarao Kancharla","software":"CP Rhapsody IDE","qty":9,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Nageswarao Kancharla","software":"Traqplan Timeline","qty":1,"market":"HMT1","client":"Athena","allocated":true},{"user":"Nandhini Ganesan","software":"Commvault FEDCB Data Protection","qty":9,"market":"HLS","client":"Humana","allocated":true},{"user":"Nandhini Ganesan","software":"CP Rhapsody IDE","qty":0,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Nandhini Ganesan","software":"CP Rhapsody IDE","qty":4,"market":"HHP","client":"Elevance Health","allocated":true},{"user":"Nandhini Ganesan","software":"Director Suite","qty":1,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Nashra Hashim","software":"Commvault FEDCB Data Protection","qty":3,"market":"Functions (IT)","client":"Elevance Health","allocated":true},{"user":"Nashra Hashim","software":"Traqplan Timeline","qty":4,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Navaneetha Macha","software":".NET Developer Bundle","qty":10,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Navaneetha Macha","software":"2FA for Jira","qty":2,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Navaneetha Macha","software":"7 Edit","qty":4,"market":"HLS","client":"Elevance Health","allocated":true},{"user":"Navaneetha Macha","software":"CP Rhapsody IDE","qty":1,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Navaneetha Macha","software":"Traqplan Timeline","qty":7,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Naveen Kumar Bayya","software":"2FA for Jira","qty":4,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Naveen Kumar Bayya","software":"7 Edit","qty":0,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Naveen Kumar Bayya","software":"Q-S-VMDR","qty":0,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Naveen Kumar Bayya","software":"Traqplan Timeline","qty":1,"market":"HPR","client":"Athena","allocated":true},{"user":"Navya Devineni","software":".NET Developer Bundle","qty":2,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Navya Devineni","software":".NET Developer Bundle","qty":4,"market":"Functions (IT)","client":"Elevance Health","allocated":true},{"user":"Navya Devineni","software":"Director Suite","qty":3,"market":"HPR","client":"Elevance Health","allocated":true},{"user":"Navyanth Kumar Bhupathi","software":".NET Developer Bundle","qty":6,"market":"HLS","client":"Elevance Health","allocated":true},{"user":"Navyanth Kumar Bhupathi","software":"Commvault FEDCB Data Protection","qty":7,"market":"HPR","client":"Humana","allocated":true},{"user":"Neha Abhijeet Gajaralwar","software":"Commvault FEDCB Data Protection","qty":10,"market":"HMT2","client":"Cigna","allocated":true},{"user":"Neha Abhijeet Gajaralwar","software":"Q-S-VMDR","qty":2,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Nelson Nagnur","software":"Director Suite","qty":4,"market":"HLS","client":"Athena","allocated":true},{"user":"Nelson Nagnur","software":"Q-S-VMDR","qty":6,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Nibi George","software":"Commvault FEDCB Data Protection","qty":8,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Nicole Boyer","software":"CP Rhapsody IDE","qty":5,"market":"HPR","client":"Devita","allocated":true},{"user":"Nicole Boyer","software":"CP Rhapsody IDE","qty":10,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Nicole Boyer","software":"CP Rhapsody IDE","qty":9,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Nicole Boyer","software":"Director Suite","qty":1,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Nicole Boyer","software":"Director Suite","qty":7,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Nihal Bapardekar","software":"7 Edit","qty":3,"market":"HMT2","client":"Devita","allocated":true},{"user":"Nikhil Jawalkar","software":".NET Developer Bundle","qty":0,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Nikhil Jawalkar","software":"7 Edit","qty":9,"market":"HHP","client":"Athena","allocated":true},{"user":"Nikhil Jawalkar","software":"Commvault FEDCB Data Protection","qty":1,"market":"HHP","client":"UnitedHealth Group","allocated":true},{"user":"Niloy Datta","software":".NET Developer Bundle","qty":10,"market":"HHP","client":"UnitedHealth Group","allocated":true},{"user":"Niloy Datta","software":"CP Rhapsody IDE","qty":3,"market":"HPR","client":"Kaiser Permanente","allocated":true},{"user":"Niloy Datta","software":"Director Suite","qty":1,"market":"HLS","client":"Cigna","allocated":true},{"user":"Nisha Gupta","software":".NET Developer Bundle","qty":10,"market":"HHP","client":"Athena","allocated":true},{"user":"Nitin Singhal","software":"CP Rhapsody IDE","qty":6,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Padmalatha Sandeep","software":"Q-S-VMDR","qty":5,"market":"HLS","client":"Cigna","allocated":true},{"user":"Palani Kumar  Pulicherla","software":"Commvault FEDCB Data Protection","qty":6,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Palani Kumar  Pulicherla","software":"Traqplan Timeline","qty":4,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Pallav Shukla","software":"Director Suite","qty":9,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Parag Pathari","software":"Commvault FEDCB Data Protection","qty":0,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Parag Pattankar","software":"7 Edit","qty":9,"market":"HMT2","client":"Cigna","allocated":true},{"user":"Parag Pattankar","software":"Director Suite","qty":4,"market":"HHP","client":"UnitedHealth Group","allocated":true},{"user":"Parag Pattankar","software":"Director Suite","qty":9,"market":"HMT2","client":"Devita","allocated":true},{"user":"Parag Radhakrishna Kelji","software":".NET Developer Bundle","qty":8,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Parag Radhakrishna Kelji","software":"7 Edit","qty":2,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Parag Radhakrishna Kelji","software":"Q-S-VMDR","qty":6,"market":"HMT1","client":"Devita","allocated":true},{"user":"Pawan Lowanshi","software":"Director Suite","qty":9,"market":"HPR","client":"Cigna","allocated":true},{"user":"Pawan Lowanshi","software":"Q-S-VMDR","qty":6,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Peony Jena","software":"Q-S-VMDR","qty":2,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Peony Jena","software":"Traqplan Timeline","qty":2,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Piyush Sharma","software":"2FA for Jira","qty":2,"market":"HHP","client":"CVS Health","allocated":true},{"user":"Piyush Sharma","software":"7 Edit","qty":0,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Piyush Sharma","software":"Q-S-VMDR","qty":8,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Prajakta Mahadik","software":".NET Developer Bundle","qty":0,"market":"HMT1","client":"Humana","allocated":true},{"user":"Prajakta Mahadik","software":"2FA for Jira","qty":4,"market":"HHP","client":"Cambia","allocated":true},{"user":"Pranav Nath Bashetty","software":".NET Developer Bundle","qty":6,"market":"HHP","client":"Cigna","allocated":true},{"user":"Pranav Nath Bashetty","software":"CP Rhapsody IDE","qty":0,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Praneeth Reddy Peddi","software":".NET Developer Bundle","qty":0,"market":"HLS","client":"Cambia","allocated":true},{"user":"Prasanthi Kumari Seelamanthula","software":"2FA for Jira","qty":9,"market":"HLS","client":"Devita","allocated":true},{"user":"Prashanth Reddy Yengannagari","software":"7 Edit","qty":9,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Prashanth Reddy Yengannagari","software":"Director Suite","qty":1,"market":"HMT2","client":"Athena","allocated":true},{"user":"Prashanth Reddy Yengannagari","software":"Q-S-VMDR","qty":6,"market":"HMT1","client":"Humana","allocated":true},{"user":"Pratap Chandra Das","software":"2FA for Jira","qty":9,"market":"HMT2","client":"Elevance Health","allocated":true},{"user":"Pratap Chandra Das","software":"7 Edit","qty":9,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Pratap Chandra Das","software":"Q-S-VMDR","qty":3,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Prathyusha Mandala","software":".NET Developer Bundle","qty":9,"market":"HPR","client":"Devita","allocated":true},{"user":"Prathyusha Mandala","software":"Commvault FEDCB Data Protection","qty":2,"market":"HPR","client":"Athena","allocated":true},{"user":"Prathyusha Mandala","software":"CP Rhapsody IDE","qty":6,"market":"HHP","client":"CVS Health","allocated":true},{"user":"Prathyusha Mandala","software":"CP Rhapsody IDE","qty":7,"market":"HMT2","client":"Humana","allocated":true},{"user":"Praveen Kanoor","software":"2FA for Jira","qty":8,"market":"HMT1","client":"Humana","allocated":true},{"user":"Praveen Kanoor","software":"Commvault FEDCB Data Protection","qty":1,"market":"HLS","client":"Humana","allocated":true},{"user":"Praveen Kanoor","software":"Commvault FEDCB Data Protection","qty":10,"market":"HMT1","client":"Elevance Health","allocated":true},{"user":"Praveen Kanoor","software":"Director Suite","qty":2,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Praveen Mareddi","software":"Q-S-VMDR","qty":0,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Priyanka Arya Chandra","software":"2FA for Jira","qty":7,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Priyanka Arya Chandra","software":"Commvault FEDCB Data Protection","qty":1,"market":"HPR","client":"Cigna","allocated":true},{"user":"Priyanka Arya Chandra","software":"Director Suite","qty":5,"market":"HLS","client":"Elevance Health","allocated":true},{"user":"Radhika Annamneni","software":"CP Rhapsody IDE","qty":6,"market":"HMT2","client":"Humana","allocated":true},{"user":"Radhika Annamneni","software":"Director Suite","qty":4,"market":"HMT2","client":"Kaiser Permanente","allocated":true},{"user":"Radhika Annamneni","software":"Traqplan Timeline","qty":10,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Rahul Chetwani","software":"2FA for Jira","qty":3,"market":"HPR","client":"Cigna","allocated":true},{"user":"Rahul Chetwani","software":"CP Rhapsody IDE","qty":5,"market":"HLS","client":"CVS Health","allocated":true},{"user":"Rahul Chetwani","software":"Q-S-VMDR","qty":1,"market":"HPR","client":"UnitedHealth Group","allocated":true},{"user":"Rahul Chetwani","software":"Traqplan Timeline","qty":6,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Rahul Gupta","software":"Commvault FEDCB Data Protection","qty":7,"market":"HLS","client":"Cigna","allocated":true},{"user":"Rahul Gupta","software":"Traqplan Timeline","qty":6,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Rahul Sharma","software":"7 Edit","qty":1,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Rahul Sharma","software":"Traqplan Timeline","qty":5,"market":"HPR","client":"Cambia","allocated":true},{"user":"Rajini Ganesh","software":"2FA for Jira","qty":6,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Rajini Ganesh","software":"Traqplan Timeline","qty":0,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Rajiv Kumar  Singh","software":"7 Edit","qty":9,"market":"HPR","client":"Kaiser Permanente","allocated":true},{"user":"Rajiv Kumar  Singh","software":"CP Rhapsody IDE","qty":7,"market":"HPR","client":"Devita","allocated":true},{"user":"Ramana Reddy Maddirala","software":"Director Suite","qty":7,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Ramana Reddy Maddirala","software":"Traqplan Timeline","qty":1,"market":"Functions (IT)","client":"Elevance Health","allocated":true},{"user":"Ramya Bandari","software":"Commvault FEDCB Data Protection","qty":10,"market":"HPR","client":"Kaiser Permanente","allocated":true},{"user":"Ramya Sai Pagadala","software":"Traqplan Timeline","qty":5,"market":"HPR","client":"Cambia","allocated":true},{"user":"Ravi Kumar  Gadwal","software":".NET Developer Bundle","qty":6,"market":"HHP","client":"Athena","allocated":true},{"user":"Ravi Kumar  Gadwal","software":"7 Edit","qty":6,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Ravi Kumar  Gadwal","software":"Commvault FEDCB Data Protection","qty":9,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Ravikumar Rajendran","software":".NET Developer Bundle","qty":10,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Ravikumar Rajendran","software":"Commvault FEDCB Data Protection","qty":8,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Ravikumar Rajendran","software":"CP Rhapsody IDE","qty":5,"market":"HMT2","client":"Humana","allocated":true},{"user":"Ravikumar Rajendran","software":"Director Suite","qty":8,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":true},{"user":"Rishabh Rajesh Dabhade","software":".NET Developer Bundle","qty":3,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Rishabh Rajesh Dabhade","software":"Commvault FEDCB Data Protection","qty":5,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Rishabh Rajesh Dabhade","software":"Commvault FEDCB Data Protection","qty":10,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Rishabh Rajesh Dabhade","software":"CP Rhapsody IDE","qty":0,"market":"HMT2","client":"Athena","allocated":true},{"user":"Rishabh Rajesh Dabhade","software":"Q-S-VMDR","qty":2,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Rishabh Rajesh Dabhade","software":"Traqplan Timeline","qty":6,"market":"HPR","client":"Elevance Health","allocated":true},{"user":"Rishikesh Pange","software":"CP Rhapsody IDE","qty":0,"market":"HPR","client":"Devita","allocated":true},{"user":"Rithvik Vishnupantuloo","software":"Commvault FEDCB Data Protection","qty":9,"market":"HMT1","client":"Elevance Health","allocated":true},{"user":"Rithvik Vishnupantuloo","software":"Director Suite","qty":2,"market":"HLS","client":"Cambia","allocated":true},{"user":"Rithvik Vishnupantuloo","software":"Q-S-VMDR","qty":5,"market":"HLS","client":"Devita","allocated":true},{"user":"Rithvik Vishnupantuloo","software":"Q-S-VMDR","qty":4,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Rithvik Vishnupantuloo","software":"Traqplan Timeline","qty":7,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Ritu Raghunath Singh Dadhwal","software":"Q-S-VMDR","qty":7,"market":"HMT2","client":"Kaiser Permanente","allocated":true},{"user":"Robert Loomis","software":"Director Suite","qty":4,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Robin Torma","software":"Commvault FEDCB Data Protection","qty":7,"market":"HLS","client":"Athena","allocated":true},{"user":"Robin Torma","software":"Director Suite","qty":0,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Rohan Shellay","software":"2FA for Jira","qty":1,"market":"HLS","client":"Athena","allocated":true},{"user":"Rohan Shellay","software":"Q-S-VMDR","qty":6,"market":"HLS","client":"Cigna","allocated":true},{"user":"Rohan Shellay","software":"Traqplan Timeline","qty":10,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Rohit Kumar","software":"Q-S-VMDR","qty":2,"market":"HPR","client":"Devita","allocated":true},{"user":"Sai Charan Gunji","software":".NET Developer Bundle","qty":3,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Sai Charan Gunji","software":"Commvault FEDCB Data Protection","qty":7,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Sai Charan Gunji","software":"CP Rhapsody IDE","qty":2,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Sai Charan Gunji","software":"Director Suite","qty":6,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Sai Charan Kumar Adaveni","software":"Commvault FEDCB Data Protection","qty":8,"market":"HMT2","client":"Kaiser Permanente","allocated":true},{"user":"Sai Charan Kumar Adaveni","software":"CP Rhapsody IDE","qty":6,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Sai Kiran Varaganti","software":".NET Developer Bundle","qty":9,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Sai Kiran Varaganti","software":".NET Developer Bundle","qty":7,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Sai Kushwanth Vailipalli","software":"Commvault FEDCB Data Protection","qty":1,"market":"HLS","client":"Devita","allocated":true},{"user":"Sai Kushwanth Vailipalli","software":"CP Rhapsody IDE","qty":0,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Sai Kushwanth Vailipalli","software":"Director Suite","qty":10,"market":"HMT2","client":"Humana","allocated":true},{"user":"Sai Kushwanth Vailipalli","software":"Q-S-VMDR","qty":8,"market":"HHP","client":"CVS Health","allocated":true},{"user":"Sai Ramya Maddini","software":"Commvault FEDCB Data Protection","qty":1,"market":"HHP","client":"CVS Health","allocated":true},{"user":"Sai Ramya Maddini","software":"CP Rhapsody IDE","qty":6,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Sai Ramya Maddini","software":"Director Suite","qty":7,"market":"HHP","client":"UnitedHealth Group","allocated":true},{"user":"Sai Sreenivas Vemu","software":"2FA for Jira","qty":8,"market":"HLS","client":"Elevance Health","allocated":true},{"user":"Sai Sunny Mogili","software":"Commvault FEDCB Data Protection","qty":5,"market":"HMT2","client":"Devita","allocated":true},{"user":"Sai Sunny Mogili","software":"Traqplan Timeline","qty":3,"market":"HPR","client":"Cambia","allocated":true},{"user":"Saji Kumar Ramachandran Pillai","software":".NET Developer Bundle","qty":2,"market":"HHP","client":"Devita","allocated":true},{"user":"Saji Kumar Ramachandran Pillai","software":"2FA for Jira","qty":8,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Saji Kumar Ramachandran Pillai","software":"Q-S-VMDR","qty":4,"market":"HHP","client":"Cambia","allocated":true},{"user":"Saket Verma","software":"2FA for Jira","qty":4,"market":"HLS","client":"Athena","allocated":true},{"user":"Saket Verma","software":"2FA for Jira","qty":10,"market":"HLS","client":"Athena","allocated":true},{"user":"Sandeep M","software":".NET Developer Bundle","qty":0,"market":"HPR","client":"Cambia","allocated":true},{"user":"Sandeep M","software":"Director Suite","qty":6,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Sandeep M","software":"Traqplan Timeline","qty":0,"market":"HHP","client":"Devita","allocated":true},{"user":"Sandhya Goud Nandigam","software":"CP Rhapsody IDE","qty":8,"market":"HPR","client":"UnitedHealth Group","allocated":true},{"user":"Sandhya Goud Nandigam","software":"Traqplan Timeline","qty":0,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Sanjana  Kondi","software":"7 Edit","qty":7,"market":"HLS","client":"Humana","allocated":true},{"user":"Sarah Dickinson","software":".NET Developer Bundle","qty":6,"market":"HMT1","client":"Elevance Health","allocated":true},{"user":"Sarah Dickinson","software":"7 Edit","qty":3,"market":"HMT2","client":"Devita","allocated":true},{"user":"Sarah Dickinson","software":"7 Edit","qty":9,"market":"HPR","client":"Cambia","allocated":true},{"user":"Saritha Bodapati","software":"7 Edit","qty":2,"market":"HLS","client":"CVS Health","allocated":true},{"user":"Satish Kumar Kori","software":"7 Edit","qty":1,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Satish Kumar Kori","software":"Traqplan Timeline","qty":10,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Satya Sindhu Yellagandula","software":"7 Edit","qty":9,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Satya Sindhu Yellagandula","software":"Commvault FEDCB Data Protection","qty":1,"market":"HHP","client":"CVS Health","allocated":true},{"user":"Saurav Acharya","software":"2FA for Jira","qty":9,"market":"HHP","client":"UnitedHealth Group","allocated":true},{"user":"Saurav Acharya","software":"Traqplan Timeline","qty":3,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Saurav Acharya","software":"Traqplan Timeline","qty":9,"market":"HPR","client":"Kaiser Permanente","allocated":true},{"user":"Shams Qamar","software":".NET Developer Bundle","qty":5,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Shams Qamar","software":"Q-S-VMDR","qty":4,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Shams Qamar","software":"Q-S-VMDR","qty":1,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Shashank Jaina","software":".NET Developer Bundle","qty":1,"market":"HMT1","client":"Devita","allocated":true},{"user":"Shashank Pasula","software":"7 Edit","qty":1,"market":"HMT2","client":"Cigna","allocated":true},{"user":"Shashank Pasula","software":"7 Edit","qty":7,"market":"HMT2","client":"Elevance Health","allocated":true},{"user":"Shashank Pasula","software":"7 Edit","qty":7,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Shashank Pasula","software":"Director Suite","qty":5,"market":"HMT1","client":"Athena","allocated":true},{"user":"Shashank Pasula","software":"Traqplan Timeline","qty":9,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Shashank Soni","software":"2FA for Jira","qty":5,"market":"HMT1","client":"Devita","allocated":true},{"user":"Shashank Soni","software":"Traqplan Timeline","qty":3,"market":"Functions (IT)","client":"Elevance Health","allocated":true},{"user":"Shashi Kiran Kommera","software":"2FA for Jira","qty":4,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Shashi Kiran Kommera","software":"Director Suite","qty":7,"market":"HHP","client":"Athena","allocated":true},{"user":"Shawn Patrick Burr","software":"Commvault FEDCB Data Protection","qty":8,"market":"HMT1","client":"Athena","allocated":true},{"user":"Shawn Patrick Burr","software":"Q-S-VMDR","qty":2,"market":"HMT2","client":"Kaiser Permanente","allocated":true},{"user":"Shikha Sharma","software":".NET Developer Bundle","qty":10,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Shikha Sharma","software":"Director Suite","qty":3,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Shikhar Nautiyal","software":".NET Developer Bundle","qty":4,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Showkat Ahmad","software":"2FA for Jira","qty":3,"market":"HMT2","client":"Humana","allocated":true},{"user":"Showkat Ahmad","software":"Commvault FEDCB Data Protection","qty":9,"market":"HHP","client":"Humana","allocated":true},{"user":"Shrikant Kayandekar","software":".NET Developer Bundle","qty":3,"market":"HMT2","client":"Kaiser Permanente","allocated":true},{"user":"Shubham Reddy Samala","software":".NET Developer Bundle","qty":9,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Shubham Reddy Samala","software":"Q-S-VMDR","qty":5,"market":"HHP","client":"Humana","allocated":true},{"user":"Shubham Reddy Samala","software":"Q-S-VMDR","qty":10,"market":"HHP","client":"Humana","allocated":true},{"user":"Shubham Roy","software":"2FA for Jira","qty":4,"market":"HMT2","client":"Kaiser Permanente","allocated":true},{"user":"Shubham Roy","software":"Commvault FEDCB Data Protection","qty":7,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Shubham S Sonulkar","software":"Q-S-VMDR","qty":10,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Siddharth Nagnath Bhurke","software":"2FA for Jira","qty":7,"market":"HHP","client":"Cambia","allocated":true},{"user":"Siddharth Nagnath Bhurke","software":"7 Edit","qty":7,"market":"HHP","client":"Devita","allocated":true},{"user":"Siddharth Nagnath Bhurke","software":"Commvault FEDCB Data Protection","qty":3,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Simran  Gopalpuria Jaiswal","software":"Commvault FEDCB Data Protection","qty":6,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Siva Reddy Vundela","software":"Commvault FEDCB Data Protection","qty":10,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Sivakumar Nidiginti","software":"Director Suite","qty":7,"market":"HMT1","client":"Athena","allocated":true},{"user":"Sivakumar Nidiginti","software":"Director Suite","qty":8,"market":"HLS","client":"Devita","allocated":true},{"user":"Sivakumar Nidiginti","software":"Q-S-VMDR","qty":5,"market":"HHP","client":"Devita","allocated":true},{"user":"Sivakumar Nidiginti","software":"Traqplan Timeline","qty":5,"market":"HLS","client":"CVS Health","allocated":true},{"user":"Sivasankardas Chinta","software":"Director Suite","qty":3,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":true},{"user":"Sivasankardas Chinta","software":"Q-S-VMDR","qty":0,"market":"HLS","client":"Devita","allocated":true},{"user":"Sneha Kulkarni","software":".NET Developer Bundle","qty":6,"market":"HMT1","client":"Elevance Health","allocated":true},{"user":"Sneha Kulkarni","software":"Traqplan Timeline","qty":2,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Sowmya Santhosh","software":"CP Rhapsody IDE","qty":4,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Sreekanth  Kotapati","software":".NET Developer Bundle","qty":10,"market":"HPR","client":"UnitedHealth Group","allocated":true},{"user":"Sreekanth  Kotapati","software":"2FA for Jira","qty":2,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Sreekanth  Kotapati","software":"CP Rhapsody IDE","qty":3,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Sreekanth  Kotapati","software":"Q-S-VMDR","qty":5,"market":"HMT1","client":"Athena","allocated":true},{"user":"Sri Ramesh Podugu","software":"Q-S-VMDR","qty":2,"market":"HHP","client":"Kaiser Permanente","allocated":true},{"user":"Srikari Penumaka","software":"2FA for Jira","qty":4,"market":"HHP","client":"UnitedHealth Group","allocated":true},{"user":"Srikari Penumaka","software":"2FA for Jira","qty":10,"market":"HLS","client":"CVS Health","allocated":true},{"user":"Srikari Penumaka","software":"Director Suite","qty":7,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Srikari Penumaka","software":"Traqplan Timeline","qty":2,"market":"HHP","client":"Elevance Health","allocated":true},{"user":"Srikari Penumaka","software":"Traqplan Timeline","qty":4,"market":"HHP","client":"Cambia","allocated":true},{"user":"Srinivas Geddada","software":"Commvault FEDCB Data Protection","qty":1,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Srinivas Geddada","software":"CP Rhapsody IDE","qty":1,"market":"HLS","client":"Cambia","allocated":true},{"user":"Srinivas Geddada","software":"Q-S-VMDR","qty":10,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Srinivas Geddada","software":"Traqplan Timeline","qty":8,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Srinivas Karri","software":"Traqplan Timeline","qty":9,"market":"HPR","client":"Cambia","allocated":true},{"user":"Stephen Cannata","software":".NET Developer Bundle","qty":10,"market":"HMT1","client":"Cambia","allocated":true},{"user":"Stephen Cannata","software":".NET Developer Bundle","qty":5,"market":"HMT1","client":"Athena","allocated":true},{"user":"Stephen Cannata","software":"7 Edit","qty":10,"market":"HHP","client":"GE Healthcare","allocated":true},{"user":"Stephen Cannata","software":"Director Suite","qty":9,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Suchita Jadhav","software":"Director Suite","qty":8,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Sudalai  Pitchai","software":".NET Developer Bundle","qty":7,"market":"HLS","client":"Devita","allocated":true},{"user":"Sudalai  Pitchai","software":"Commvault FEDCB Data Protection","qty":9,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Sudalai  Pitchai","software":"Director Suite","qty":0,"market":"HHP","client":"Devita","allocated":true},{"user":"Sudalai  Pitchai","software":"Q-S-VMDR","qty":8,"market":"HPR","client":"Cambia","allocated":true},{"user":"Sumalatha Sajja","software":"2FA for Jira","qty":6,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":true},{"user":"Sumalatha Sajja","software":"Q-S-VMDR","qty":3,"market":"HMT2","client":"Devita","allocated":true},{"user":"Sumant Jena","software":"7 Edit","qty":9,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Sumant Jena","software":"Commvault FEDCB Data Protection","qty":0,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Sumant Jena","software":"Commvault FEDCB Data Protection","qty":8,"market":"HHP","client":"CVS Health","allocated":true},{"user":"Sumant Jena","software":"CP Rhapsody IDE","qty":7,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Sumit Bhardwaj","software":"7 Edit","qty":5,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Sunil Kumar Prathipati","software":"Director Suite","qty":3,"market":"HMT2","client":"Humana","allocated":true},{"user":"Surendrasingh Chaupawat","software":"CP Rhapsody IDE","qty":3,"market":"HHP","client":"Elevance Health","allocated":true},{"user":"Suresh Muppala","software":".NET Developer Bundle","qty":10,"market":"HMT1","client":"Athena","allocated":true},{"user":"Suresh Muppala","software":"Commvault FEDCB Data Protection","qty":3,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":true},{"user":"Suresh Muppala","software":"CP Rhapsody IDE","qty":9,"market":"Functions (IT)","client":"Elevance Health","allocated":true},{"user":"Suresh Muppala","software":"Traqplan Timeline","qty":8,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Sushant Kumar Singh","software":"7 Edit","qty":7,"market":"HLS","client":"CVS Health","allocated":true},{"user":"Sushant Kumar Singh","software":"CP Rhapsody IDE","qty":8,"market":"HPR","client":"Kaiser Permanente","allocated":true},{"user":"Sushil Suresh Shah","software":".NET Developer Bundle","qty":0,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Sushil Suresh Shah","software":"2FA for Jira","qty":1,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Sushil Suresh Shah","software":"Commvault FEDCB Data Protection","qty":8,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Sushil Suresh Shah","software":"CP Rhapsody IDE","qty":4,"market":"Functions (IT)","client":"Humana","allocated":true},{"user":"Swaminathan Gopalakrishnan","software":".NET Developer Bundle","qty":1,"market":"HMT1","client":"Humana","allocated":true},{"user":"Swaminathan Gopalakrishnan","software":"7 Edit","qty":2,"market":"HMT2","client":"Cambia","allocated":true},{"user":"Swaminathan Gopalakrishnan","software":"CP Rhapsody IDE","qty":4,"market":"HMT2","client":"Humana","allocated":true},{"user":"Swaminathan Gopalakrishnan","software":"Traqplan Timeline","qty":5,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Swapnil Mayekar","software":"Traqplan Timeline","qty":8,"market":"HMT2","client":"UnitedHealth Group","allocated":true},{"user":"Swapnil Thakur","software":"CP Rhapsody IDE","qty":6,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Swapnil Thakur","software":"Traqplan Timeline","qty":0,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Swara Kiran Rane","software":"2FA for Jira","qty":7,"market":"HMT1","client":"Cigna","allocated":true},{"user":"Swara Kiran Rane","software":"CP Rhapsody IDE","qty":0,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Teja Bheem Reddy","software":"Q-S-VMDR","qty":6,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Teja Bheem Reddy","software":"Q-S-VMDR","qty":3,"market":"HLS","client":"Cambia","allocated":true},{"user":"Tejas Pawar","software":"Q-S-VMDR","qty":7,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Thulasi Maddiboyina","software":"Traqplan Timeline","qty":8,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Thulasi Maddiboyina","software":"Traqplan Timeline","qty":8,"market":"HLS","client":"Devita","allocated":true},{"user":"Trivikram Kota","software":"2FA for Jira","qty":6,"market":"HPR","client":"Cigna","allocated":true},{"user":"Trivikram Kota","software":"7 Edit","qty":8,"market":"HMT1","client":"Devita","allocated":true},{"user":"Trivikram Kota","software":"7 Edit","qty":1,"market":"HPR","client":"CVS Health","allocated":true},{"user":"Trivikram Kota","software":"CP Rhapsody IDE","qty":10,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Trivikram Kota","software":"Traqplan Timeline","qty":3,"market":"HLS","client":"Cigna","allocated":true},{"user":"Tushar Sharma","software":"Commvault FEDCB Data Protection","qty":2,"market":"HPR","client":"Cigna","allocated":true},{"user":"Udit Chopra","software":"2FA for Jira","qty":5,"market":"HLS","client":"CVS Health","allocated":true},{"user":"Udit Chopra","software":"CP Rhapsody IDE","qty":2,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Vamshi Krishna Janagam","software":"7 Edit","qty":7,"market":"HLS","client":"CVS Health","allocated":true},{"user":"Vamshi Krishna Janagam","software":"Q-S-VMDR","qty":10,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Vamshi Vennapu","software":"Commvault FEDCB Data Protection","qty":2,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Vamshi Vennapu","software":"Q-S-VMDR","qty":5,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Vamsi Krishna  Potula","software":"7 Edit","qty":4,"market":"HPR","client":"Kaiser Permanente","allocated":true},{"user":"Vamsi Krishna  Potula","software":"Traqplan Timeline","qty":9,"market":"HMT2","client":"GE Healthcare","allocated":true},{"user":"Vanaja Duggirala","software":".NET Developer Bundle","qty":7,"market":"HHP","client":"Athena","allocated":true},{"user":"Vanaja Duggirala","software":".NET Developer Bundle","qty":3,"market":"HHP","client":"Humana","allocated":true},{"user":"Vanaja Duggirala","software":"7 Edit","qty":2,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Vanaja Duggirala","software":"Director Suite","qty":6,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Vanaja Duggirala","software":"Traqplan Timeline","qty":6,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Venkat Sai Jami","software":"Commvault FEDCB Data Protection","qty":0,"market":"HPR","client":"Elevance Health","allocated":true},{"user":"Venkat Sai Jami","software":"Q-S-VMDR","qty":6,"market":"HMT2","client":"Athena","allocated":true},{"user":"Venkata Abhiram Vanamali","software":"2FA for Jira","qty":8,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Venkata Abhiram Vanamali","software":"Traqplan Timeline","qty":10,"market":"HPR","client":"Athena","allocated":true},{"user":"Venkata Ravi Teja Bhamidi","software":"Commvault FEDCB Data Protection","qty":1,"market":"HPR","client":"GE Healthcare","allocated":true},{"user":"Venkata Ravi Teja Bhamidi","software":"Q-S-VMDR","qty":4,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Vicki Lyn Cranford","software":"2FA for Jira","qty":2,"market":"HLS","client":"Kaiser Permanente","allocated":true},{"user":"Vicki Lyn Cranford","software":"Commvault FEDCB Data Protection","qty":9,"market":"HMT2","client":"Humana","allocated":true},{"user":"Vicki Lyn Cranford","software":"Traqplan Timeline","qty":2,"market":"HMT1","client":"Elevance Health","allocated":true},{"user":"Vignesh Vardhan Kuncharapu","software":"Commvault FEDCB Data Protection","qty":5,"market":"HLS","client":"Cambia","allocated":true},{"user":"Vijaya Kumar Guntumadugu","software":"2FA for Jira","qty":9,"market":"HMT2","client":"Devita","allocated":true},{"user":"Vijaya Kumar Guntumadugu","software":"2FA for Jira","qty":3,"market":"HMT1","client":"Athena","allocated":true},{"user":"Vikas Tamrakar","software":"7 Edit","qty":3,"market":"Functions (IT)","client":"Cigna","allocated":true},{"user":"Vikas Tamrakar","software":"CP Rhapsody IDE","qty":8,"market":"HMT1","client":"Athena","allocated":true},{"user":"Vikramsingh Chavan","software":"Commvault FEDCB Data Protection","qty":3,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Vinay Bherwani","software":"2FA for Jira","qty":3,"market":"HLS","client":"Devita","allocated":true},{"user":"Vinay Bherwani","software":"Director Suite","qty":9,"market":"HHP","client":"Devita","allocated":true},{"user":"Vinay Bherwani","software":"Director Suite","qty":7,"market":"HHP","client":"Kaiser Permanente","allocated":true},{"user":"Vinay Bherwani","software":"Traqplan Timeline","qty":8,"market":"HLS","client":"Athena","allocated":true},{"user":"Vinay Pal","software":"Director Suite","qty":8,"market":"Functions (IT)","client":"CVS Health","allocated":true},{"user":"Vineesh Vinayan","software":".NET Developer Bundle","qty":7,"market":"HPR","client":"Cambia","allocated":true},{"user":"Vineesh Vinayan","software":"2FA for Jira","qty":3,"market":"Functions (IT)","client":"Cigna","allocated":true},{"user":"Vineesh Vinayan","software":"7 Edit","qty":3,"market":"HMT2","client":"CVS Health","allocated":true},{"user":"Vineeth Chowdary Tripuraneni","software":"2FA for Jira","qty":9,"market":"HLS","client":"Athena","allocated":true},{"user":"Vineeth Chowdary Tripuraneni","software":"2FA for Jira","qty":6,"market":"Functions (IT)","client":"Athena","allocated":true},{"user":"Vineeth Chowdary Tripuraneni","software":"7 Edit","qty":8,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Vineeth Chowdary Tripuraneni","software":"Director Suite","qty":1,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":"Vineeth Chowdary Tripuraneni","software":"Director Suite","qty":10,"market":"HMT1","client":"CVS Health","allocated":true},{"user":"Vishal Ramgiri","software":"Director Suite","qty":10,"market":"HMT2","client":"Cigna","allocated":true},{"user":"Vishnu Mishra","software":"Commvault FEDCB Data Protection","qty":3,"market":"HMT1","client":"UnitedHealth Group","allocated":true},{"user":"Vivekvardhan Reddy Enreddy","software":"7 Edit","qty":6,"market":"HMT1","client":"Kaiser Permanente","allocated":true},{"user":"Vivekvardhan Reddy Enreddy","software":"Traqplan Timeline","qty":9,"market":"HMT2","client":"Cigna","allocated":true},{"user":"Vruushali Raut","software":"CP Rhapsody IDE","qty":7,"market":"HHP","client":"Kaiser Permanente","allocated":true},{"user":"Vruushali Raut","software":"Traqplan Timeline","qty":5,"market":"HMT1","client":"Athena","allocated":true},{"user":"Vruushali Raut","software":"Traqplan Timeline","qty":5,"market":"HLS","client":"Athena","allocated":true},{"user":"Wei Han Bryan Lee","software":"Commvault FEDCB Data Protection","qty":10,"market":"HPR","client":"Devita","allocated":true},{"user":"William Patrick Petersen","software":"2FA for Jira","qty":5,"market":"HLS","client":"Humana","allocated":true},{"user":"William Patrick Petersen","software":"Director Suite","qty":5,"market":"HMT1","client":"Humana","allocated":true},{"user":"Yamini  Polavarapu","software":".NET Developer Bundle","qty":9,"market":"HPR","client":"Humana","allocated":true},{"user":"Yamini  Polavarapu","software":"Traqplan Timeline","qty":9,"market":"Functions (IT)","client":"Cambia","allocated":true},{"user":"Yashwanth Ramachandra","software":"Director Suite","qty":7,"market":"Functions (IT)","client":"Devita","allocated":true},{"user":"Yashwanth Ramachandra","software":"Traqplan Timeline","qty":5,"market":"HLS","client":"GE Healthcare","allocated":true},{"user":"Yengannagari Rupa","software":"CP Rhapsody IDE","qty":0,"market":"HLS","client":"Athena","allocated":true},{"user":"Yogesh Parte","software":"7 Edit","qty":6,"market":"HLS","client":"CVS Health","allocated":true},{"user":"Yogesh Parte","software":"Q-S-VMDR","qty":10,"market":"HHP","client":"Athena","allocated":true},{"user":"Yuvraj Verma","software":"7 Edit","qty":1,"market":"HLS","client":"Elevance Health","allocated":true},{"user":"Yuvraj Verma","software":"7 Edit","qty":0,"market":"HMT1","client":"GE Healthcare","allocated":true},{"user":"Yuvraj Verma","software":"Traqplan Timeline","qty":2,"market":"HPR","client":"Devita","allocated":true},{"user":"Zakeeruddin Mohd","software":"7 Edit","qty":5,"market":"HPR","client":"Cambia","allocated":true},{"user":"Zakeeruddin Mohd","software":"Director Suite","qty":1,"market":"Functions (IT)","client":"GE Healthcare","allocated":true},{"user":null,"software":".NET Developer Bundle","qty":5,"market":"HPR","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":0,"market":"HMT1","client":"Humana","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":7,"market":"HMT1","client":"GE Healthcare","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":7,"market":"HHP","client":"Kaiser Permanente","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":7,"market":"HMT1","client":"Devita","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":10,"market":"HMT1","client":"Kaiser Permanente","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":9,"market":"HMT2","client":"Cambia","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":3,"market":"HLS","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":4,"market":"HMT1","client":"Kaiser Permanente","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":2,"market":"HPR","client":"Kaiser Permanente","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":6,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":9,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":2,"market":"HMT2","client":"GE Healthcare","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":2,"market":"HPR","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":10,"market":"Functions (IT)","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":8,"market":"Functions (IT)","client":"Cambia","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":6,"market":"HHP","client":"GE Healthcare","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":1,"market":"HLS","client":"GE Healthcare","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":4,"market":"HLS","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":6,"market":"HMT1","client":"Humana","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":4,"market":"Functions (IT)","client":"Cigna","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":7,"market":"Functions (IT)","client":"GE Healthcare","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":5,"market":"HPR","client":"Devita","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":9,"market":"HPR","client":"Cigna","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":0,"market":"HPR","client":"GE Healthcare","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":5,"market":"Functions (IT)","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":5,"market":"HHP","client":"CVS Health","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":1,"market":"Functions (IT)","client":"GE Healthcare","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":9,"market":"Functions (IT)","client":"Elevance Health","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":1,"market":"Functions (IT)","client":"Cambia","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":2,"market":"Functions (IT)","client":"Humana","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":5,"market":"HHP","client":"GE Healthcare","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":1,"market":"HMT1","client":"CVS Health","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":6,"market":"HLS","client":"Kaiser Permanente","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":3,"market":"HHP","client":"CVS Health","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":8,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":10,"market":"HPR","client":"CVS Health","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":3,"market":"HLS","client":"Devita","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":3,"market":"HPR","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":9,"market":"Functions (IT)","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":5,"market":"HPR","client":"Devita","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":6,"market":"HMT1","client":"Humana","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":1,"market":"HHP","client":"Kaiser Permanente","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":8,"market":"HMT1","client":"Cigna","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":10,"market":"HMT2","client":"CVS Health","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":8,"market":"HMT1","client":"GE Healthcare","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":8,"market":"HHP","client":"Humana","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":8,"market":"HPR","client":"Kaiser Permanente","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":8,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":0,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":".NET Developer Bundle","qty":1,"market":"HLS","client":"Cambia","allocated":false},{"user":null,"software":"2FA for Jira","qty":2,"market":"HHP","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"2FA for Jira","qty":2,"market":"HPR","client":"Devita","allocated":false},{"user":null,"software":"2FA for Jira","qty":3,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":"2FA for Jira","qty":3,"market":"Functions (IT)","client":"Devita","allocated":false},{"user":null,"software":"2FA for Jira","qty":3,"market":"HMT1","client":"CVS Health","allocated":false},{"user":null,"software":"2FA for Jira","qty":3,"market":"HPR","client":"Cigna","allocated":false},{"user":null,"software":"2FA for Jira","qty":2,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"2FA for Jira","qty":3,"market":"HMT2","client":"Devita","allocated":false},{"user":null,"software":"2FA for Jira","qty":2,"market":"HMT2","client":"Humana","allocated":false},{"user":null,"software":"2FA for Jira","qty":3,"market":"HHP","client":"Cigna","allocated":false},{"user":null,"software":"2FA for Jira","qty":4,"market":"Functions (IT)","client":"Cigna","allocated":false},{"user":null,"software":"2FA for Jira","qty":4,"market":"HHP","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"2FA for Jira","qty":2,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":"2FA for Jira","qty":4,"market":"HLS","client":"GE Healthcare","allocated":false},{"user":null,"software":"2FA for Jira","qty":1,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":"2FA for Jira","qty":4,"market":"HHP","client":"Athena","allocated":false},{"user":null,"software":"2FA for Jira","qty":1,"market":"Functions (IT)","client":"Athena","allocated":false},{"user":null,"software":"2FA for Jira","qty":5,"market":"Functions (IT)","client":"Devita","allocated":false},{"user":null,"software":"2FA for Jira","qty":6,"market":"HMT2","client":"CVS Health","allocated":false},{"user":null,"software":"2FA for Jira","qty":6,"market":"Functions (IT)","client":"CVS Health","allocated":false},{"user":null,"software":"2FA for Jira","qty":7,"market":"HHP","client":"Cigna","allocated":false},{"user":null,"software":"2FA for Jira","qty":7,"market":"HMT2","client":"Cambia","allocated":false},{"user":null,"software":"2FA for Jira","qty":0,"market":"HMT2","client":"GE Healthcare","allocated":false},{"user":null,"software":"2FA for Jira","qty":0,"market":"HPR","client":"Cigna","allocated":false},{"user":null,"software":"2FA for Jira","qty":7,"market":"HMT1","client":"GE Healthcare","allocated":false},{"user":null,"software":"2FA for Jira","qty":0,"market":"HLS","client":"Cigna","allocated":false},{"user":null,"software":"2FA for Jira","qty":8,"market":"HHP","client":"GE Healthcare","allocated":false},{"user":null,"software":"2FA for Jira","qty":8,"market":"HMT1","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"2FA for Jira","qty":8,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":"2FA for Jira","qty":8,"market":"HMT2","client":"Humana","allocated":false},{"user":null,"software":"2FA for Jira","qty":8,"market":"HMT1","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"2FA for Jira","qty":8,"market":"Functions (IT)","client":"Cigna","allocated":false},{"user":null,"software":"2FA for Jira","qty":0,"market":"Functions (IT)","client":"Humana","allocated":false},{"user":null,"software":"2FA for Jira","qty":0,"market":"Functions (IT)","client":"Humana","allocated":false},{"user":null,"software":"2FA for Jira","qty":8,"market":"HMT1","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"2FA for Jira","qty":9,"market":"HLS","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"2FA for Jira","qty":9,"market":"HLS","client":"Elevance Health","allocated":false},{"user":null,"software":"2FA for Jira","qty":0,"market":"HLS","client":"Devita","allocated":false},{"user":null,"software":"2FA for Jira","qty":9,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"2FA for Jira","qty":10,"market":"HMT1","client":"Devita","allocated":false},{"user":null,"software":"2FA for Jira","qty":0,"market":"HHP","client":"Cigna","allocated":false},{"user":null,"software":"2FA for Jira","qty":10,"market":"HMT1","client":"Cambia","allocated":false},{"user":null,"software":"7 Edit","qty":3,"market":"HHP","client":"Athena","allocated":false},{"user":null,"software":"7 Edit","qty":5,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"7 Edit","qty":2,"market":"HMT1","client":"Humana","allocated":false},{"user":null,"software":"7 Edit","qty":5,"market":"Functions (IT)","client":"GE Healthcare","allocated":false},{"user":null,"software":"7 Edit","qty":7,"market":"HMT2","client":"Athena","allocated":false},{"user":null,"software":"7 Edit","qty":1,"market":"HMT2","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"7 Edit","qty":1,"market":"HLS","client":"Cigna","allocated":false},{"user":null,"software":"7 Edit","qty":10,"market":"HMT1","client":"Cambia","allocated":false},{"user":null,"software":"7 Edit","qty":9,"market":"HMT2","client":"Athena","allocated":false},{"user":null,"software":"7 Edit","qty":8,"market":"Functions (IT)","client":"Devita","allocated":false},{"user":null,"software":"7 Edit","qty":10,"market":"HHP","client":"Devita","allocated":false},{"user":null,"software":"7 Edit","qty":6,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"7 Edit","qty":0,"market":"HMT2","client":"Cambia","allocated":false},{"user":null,"software":"7 Edit","qty":10,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"7 Edit","qty":6,"market":"HMT2","client":"Cigna","allocated":false},{"user":null,"software":"7 Edit","qty":9,"market":"HMT2","client":"GE Healthcare","allocated":false},{"user":null,"software":"7 Edit","qty":9,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":"7 Edit","qty":8,"market":"HMT2","client":"Devita","allocated":false},{"user":null,"software":"7 Edit","qty":0,"market":"HPR","client":"Athena","allocated":false},{"user":null,"software":"7 Edit","qty":0,"market":"HLS","client":"Cambia","allocated":false},{"user":null,"software":"7 Edit","qty":3,"market":"HMT2","client":"Devita","allocated":false},{"user":null,"software":"7 Edit","qty":3,"market":"HMT1","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"7 Edit","qty":0,"market":"Functions (IT)","client":"Humana","allocated":false},{"user":null,"software":"7 Edit","qty":0,"market":"Functions (IT)","client":"GE Healthcare","allocated":false},{"user":null,"software":"7 Edit","qty":3,"market":"HLS","client":"Cambia","allocated":false},{"user":null,"software":"7 Edit","qty":1,"market":"HPR","client":"Elevance Health","allocated":false},{"user":null,"software":"7 Edit","qty":2,"market":"HPR","client":"Athena","allocated":false},{"user":null,"software":"7 Edit","qty":2,"market":"HLS","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"7 Edit","qty":2,"market":"HMT2","client":"Devita","allocated":false},{"user":null,"software":"7 Edit","qty":6,"market":"HMT2","client":"Elevance Health","allocated":false},{"user":null,"software":"7 Edit","qty":4,"market":"HMT1","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"7 Edit","qty":7,"market":"HHP","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"7 Edit","qty":8,"market":"HLS","client":"Humana","allocated":false},{"user":null,"software":"7 Edit","qty":10,"market":"HPR","client":"Athena","allocated":false},{"user":null,"software":"7 Edit","qty":4,"market":"HMT1","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"7 Edit","qty":0,"market":"HMT2","client":"Humana","allocated":false},{"user":null,"software":"7 Edit","qty":0,"market":"HMT2","client":"Cambia","allocated":false},{"user":null,"software":"7 Edit","qty":8,"market":"HMT2","client":"GE Healthcare","allocated":false},{"user":null,"software":"7 Edit","qty":5,"market":"HLS","client":"Cambia","allocated":false},{"user":null,"software":"7 Edit","qty":1,"market":"HMT1","client":"Cigna","allocated":false},{"user":null,"software":"7 Edit","qty":5,"market":"HHP","client":"Cambia","allocated":false},{"user":null,"software":"7 Edit","qty":5,"market":"HMT2","client":"CVS Health","allocated":false},{"user":null,"software":"7 Edit","qty":5,"market":"HPR","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":4,"market":"HPR","client":"Devita","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":8,"market":"HLS","client":"GE Healthcare","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":9,"market":"HMT2","client":"GE Healthcare","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":8,"market":"HHP","client":"Cigna","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":9,"market":"HMT1","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":8,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":0,"market":"HMT1","client":"Devita","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":8,"market":"HLS","client":"GE Healthcare","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":7,"market":"HPR","client":"Cigna","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":9,"market":"HPR","client":"Athena","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":7,"market":"HLS","client":"GE Healthcare","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":7,"market":"HHP","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":7,"market":"HMT1","client":"Humana","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":7,"market":"Functions (IT)","client":"Elevance Health","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":1,"market":"HMT1","client":"Cambia","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":9,"market":"Functions (IT)","client":"CVS Health","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":7,"market":"HPR","client":"Cigna","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":9,"market":"HHP","client":"Humana","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":1,"market":"HPR","client":"CVS Health","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":6,"market":"Functions (IT)","client":"Humana","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":9,"market":"HMT1","client":"Elevance Health","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":10,"market":"HMT1","client":"Elevance Health","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":5,"market":"Functions (IT)","client":"CVS Health","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":5,"market":"HMT1","client":"GE Healthcare","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":8,"market":"HPR","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":5,"market":"HMT2","client":"Elevance Health","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":2,"market":"Functions (IT)","client":"Devita","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":2,"market":"Functions (IT)","client":"CVS Health","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":4,"market":"HMT1","client":"Devita","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":0,"market":"Functions (IT)","client":"Cigna","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":1,"market":"Functions (IT)","client":"GE Healthcare","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":2,"market":"HMT1","client":"GE Healthcare","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":1,"market":"HLS","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":3,"market":"HPR","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":7,"market":"Functions (IT)","client":"Humana","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":5,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":1,"market":"HPR","client":"Humana","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":9,"market":"HMT2","client":"Devita","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":4,"market":"HPR","client":"Humana","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":7,"market":"HPR","client":"Athena","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":5,"market":"HMT1","client":"Elevance Health","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":3,"market":"HMT1","client":"Devita","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":1,"market":"HPR","client":"CVS Health","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":3,"market":"HMT2","client":"Cambia","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":2,"market":"HMT2","client":"Humana","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":3,"market":"HMT1","client":"Cambia","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":3,"market":"HMT1","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Commvault FEDCB Data Protection","qty":6,"market":"HHP","client":"Devita","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":2,"market":"HPR","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":6,"market":"HPR","client":"Elevance Health","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":1,"market":"HPR","client":"Cigna","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":4,"market":"HPR","client":"Cambia","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":10,"market":"Functions (IT)","client":"Devita","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":3,"market":"HLS","client":"GE Healthcare","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":1,"market":"Functions (IT)","client":"Cigna","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":1,"market":"HMT2","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":7,"market":"HHP","client":"Athena","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":3,"market":"HHP","client":"GE Healthcare","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":5,"market":"HMT1","client":"Elevance Health","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":9,"market":"HMT2","client":"Cigna","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":6,"market":"HMT1","client":"Cigna","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":2,"market":"HMT1","client":"CVS Health","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":3,"market":"HMT1","client":"Elevance Health","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":2,"market":"HLS","client":"GE Healthcare","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":7,"market":"Functions (IT)","client":"Devita","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":5,"market":"HMT1","client":"Devita","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":10,"market":"HHP","client":"GE Healthcare","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":8,"market":"HMT2","client":"Cigna","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":9,"market":"HMT2","client":"Cambia","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":6,"market":"HHP","client":"GE Healthcare","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":0,"market":"HHP","client":"GE Healthcare","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":0,"market":"HHP","client":"Devita","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":4,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":1,"market":"HHP","client":"GE Healthcare","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":10,"market":"Functions (IT)","client":"Cambia","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":6,"market":"HHP","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":7,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":0,"market":"HLS","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":9,"market":"HPR","client":"Elevance Health","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":10,"market":"HMT1","client":"GE Healthcare","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":3,"market":"HMT2","client":"Cambia","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":3,"market":"HMT2","client":"CVS Health","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":10,"market":"Functions (IT)","client":"Cambia","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":4,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":7,"market":"HLS","client":"Cambia","allocated":false},{"user":null,"software":"CP Rhapsody IDE","qty":2,"market":"HPR","client":"Elevance Health","allocated":false},{"user":null,"software":"Director Suite","qty":0,"market":"HLS","client":"Cambia","allocated":false},{"user":null,"software":"Director Suite","qty":0,"market":"Functions (IT)","client":"Athena","allocated":false},{"user":null,"software":"Director Suite","qty":8,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Director Suite","qty":7,"market":"HHP","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Director Suite","qty":9,"market":"HMT2","client":"Athena","allocated":false},{"user":null,"software":"Director Suite","qty":5,"market":"HHP","client":"Cambia","allocated":false},{"user":null,"software":"Director Suite","qty":7,"market":"HLS","client":"Athena","allocated":false},{"user":null,"software":"Director Suite","qty":7,"market":"HMT2","client":"Cigna","allocated":false},{"user":null,"software":"Director Suite","qty":10,"market":"Functions (IT)","client":"Elevance Health","allocated":false},{"user":null,"software":"Director Suite","qty":8,"market":"HMT1","client":"Humana","allocated":false},{"user":null,"software":"Director Suite","qty":10,"market":"HMT2","client":"Humana","allocated":false},{"user":null,"software":"Director Suite","qty":0,"market":"HLS","client":"GE Healthcare","allocated":false},{"user":null,"software":"Director Suite","qty":4,"market":"Functions (IT)","client":"Elevance Health","allocated":false},{"user":null,"software":"Director Suite","qty":1,"market":"HLS","client":"Athena","allocated":false},{"user":null,"software":"Director Suite","qty":1,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":"Director Suite","qty":3,"market":"HPR","client":"Cigna","allocated":false},{"user":null,"software":"Director Suite","qty":4,"market":"HMT1","client":"Cambia","allocated":false},{"user":null,"software":"Director Suite","qty":3,"market":"HPR","client":"Athena","allocated":false},{"user":null,"software":"Director Suite","qty":4,"market":"HLS","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Director Suite","qty":8,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Director Suite","qty":7,"market":"HMT2","client":"Cambia","allocated":false},{"user":null,"software":"Director Suite","qty":4,"market":"HLS","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Director Suite","qty":4,"market":"HLS","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Director Suite","qty":2,"market":"HPR","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Director Suite","qty":1,"market":"HPR","client":"Cigna","allocated":false},{"user":null,"software":"Director Suite","qty":3,"market":"HHP","client":"Devita","allocated":false},{"user":null,"software":"Director Suite","qty":5,"market":"HMT1","client":"Cambia","allocated":false},{"user":null,"software":"Director Suite","qty":2,"market":"HMT1","client":"Cambia","allocated":false},{"user":null,"software":"Director Suite","qty":5,"market":"HMT2","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Director Suite","qty":1,"market":"HLS","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Director Suite","qty":10,"market":"HPR","client":"Cigna","allocated":false},{"user":null,"software":"Director Suite","qty":2,"market":"HMT1","client":"Devita","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":6,"market":"HLS","client":"CVS Health","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":10,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":10,"market":"Functions (IT)","client":"Athena","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":5,"market":"Functions (IT)","client":"Cambia","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":7,"market":"Functions (IT)","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":7,"market":"HMT1","client":"GE Healthcare","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":1,"market":"HPR","client":"Elevance Health","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":5,"market":"HHP","client":"Humana","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":10,"market":"HHP","client":"Devita","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":1,"market":"HMT1","client":"CVS Health","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":5,"market":"HPR","client":"Devita","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":0,"market":"Functions (IT)","client":"Humana","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":5,"market":"Functions (IT)","client":"Athena","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":4,"market":"Functions (IT)","client":"Cigna","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":8,"market":"HLS","client":"Cambia","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":10,"market":"HPR","client":"Cambia","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":10,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":4,"market":"Functions (IT)","client":"GE Healthcare","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":4,"market":"HPR","client":"Cambia","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":4,"market":"Functions (IT)","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":3,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":4,"market":"HMT1","client":"Athena","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":4,"market":"HPR","client":"Cigna","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":0,"market":"HPR","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":8,"market":"Functions (IT)","client":"Elevance Health","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":2,"market":"HLS","client":"GE Healthcare","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":4,"market":"HMT2","client":"Cambia","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":3,"market":"HMT2","client":"CVS Health","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":6,"market":"HMT2","client":"Elevance Health","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":6,"market":"HHP","client":"CVS Health","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":9,"market":"HLS","client":"Athena","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":6,"market":"HMT2","client":"Athena","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":0,"market":"HHP","client":"Athena","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":0,"market":"HHP","client":"Devita","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":6,"market":"Functions (IT)","client":"Cigna","allocated":false},{"user":null,"software":"Q-S-VMDR","qty":6,"market":"HHP","client":"Devita","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":1,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":10,"market":"HPR","client":"Humana","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":2,"market":"HPR","client":"GE Healthcare","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":10,"market":"HPR","client":"Humana","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":4,"market":"Functions (IT)","client":"GE Healthcare","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":7,"market":"HMT2","client":"Elevance Health","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":10,"market":"HHP","client":"CVS Health","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":4,"market":"HPR","client":"GE Healthcare","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":10,"market":"HMT2","client":"Cigna","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":6,"market":"HMT1","client":"CVS Health","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":0,"market":"HHP","client":"GE Healthcare","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":6,"market":"Functions (IT)","client":"Devita","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":9,"market":"HHP","client":"Cambia","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":0,"market":"HLS","client":"GE Healthcare","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":10,"market":"HHP","client":"Devita","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":5,"market":"HMT2","client":"Cambia","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":6,"market":"HLS","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":6,"market":"HPR","client":"GE Healthcare","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":3,"market":"HMT2","client":"Athena","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":9,"market":"HMT2","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":1,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":1,"market":"HMT2","client":"UnitedHealth Group","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":5,"market":"HLS","client":"Devita","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":0,"market":"HMT2","client":"GE Healthcare","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":10,"market":"Functions (IT)","client":"GE Healthcare","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":6,"market":"HMT1","client":"CVS Health","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":4,"market":"Functions (IT)","client":"Devita","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":8,"market":"HPR","client":"CVS Health","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":6,"market":"HMT1","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":2,"market":"Functions (IT)","client":"Humana","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":0,"market":"HLS","client":"Cigna","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":4,"market":"HMT1","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":8,"market":"Functions (IT)","client":"GE Healthcare","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":8,"market":"HLS","client":"Cambia","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":10,"market":"HHP","client":"Kaiser Permanente","allocated":false},{"user":null,"software":"Traqplan Timeline","qty":4,"market":"HLS","client":"UnitedHealth Group","allocated":false}]},"budget":{"kpis":{"totalSoftware":8,"totalLicenses":4995,"allocatedLicenses":3392,"unallocatedLicenses":1603,"totalSpending":221484226.41000003,"spendingPerAllocatedLicense":65296.05731426887},"forecast":{"currentSpending":221484226.41000003,"growthRate":-0.08162950614403922,"growthSource":"historical","expectedGrowthAmount":-18079648.02054287,"estimatedSavings":84121922.09,"unallocatedCost":71386934.83,"duplicateCost":12734987.26,"predictedBudget":119282656.29945716},"costAnalysis":[{"name":".NET Developer Bundle","qty":739,"totalCost":32717170.580000002,"savingsOpportunity":13768660.42,"missingPrice":false},{"name":"2FA for Jira","qty":571,"totalCost":28100114.81,"savingsOpportunity":11171148.97,"missingPrice":false},{"name":"7 Edit","qty":540,"totalCost":28513425.6,"savingsOpportunity":11352567.6,"missingPrice":false},{"name":"Commvault FEDCB Data Protection","qty":710,"totalCost":34782772.2,"savingsOpportunity":13913108.879999999,"missingPrice":false},{"name":"CP Rhapsody IDE","qty":570,"totalCost":32842550.700000003,"savingsOpportunity":13482731.340000002,"missingPrice":false},{"name":"Director Suite","qty":644,"totalCost":28742260.959999997,"savingsOpportunity":7765766.16,"missingPrice":false},{"name":"Q-S-VMDR","qty":577,"totalCost":3333329,"savingsOpportunity":1178508,"missingPrice":false},{"name":"Traqplan Timeline","qty":644,"totalCost":32452602.56,"savingsOpportunity":11489430.719999999,"missingPrice":false}],"missingPriceCount":0,"missingPriceSoftware":[]},"prices":[{"sw_name":".NET Developer Bundle","unit_price":"44272.22","currency":"INR","updated_at":"2026-07-14T11:46:30.077Z","updated_by_name":null},{"sw_name":"2FA for Jira","unit_price":"49212.11","currency":"INR","updated_at":"2026-07-14T11:31:30.333Z","updated_by_name":null},{"sw_name":"7 Edit","unit_price":"52802.64","currency":"INR","updated_at":"2026-07-14T11:31:30.366Z","updated_by_name":null},{"sw_name":"Commvault FEDCB Data Protection","unit_price":"48989.82","currency":"INR","updated_at":"2026-07-14T11:31:30.329Z","updated_by_name":null},{"sw_name":"CP Rhapsody IDE","unit_price":"57618.51","currency":"INR","updated_at":"2026-07-14T11:31:30.322Z","updated_by_name":null},{"sw_name":"Director Suite","unit_price":"44630.84","currency":"INR","updated_at":"2026-07-14T11:31:30.342Z","updated_by_name":null},{"sw_name":"Q-S-VMDR","unit_price":"5777.00","currency":"INR","updated_at":"2026-07-14T12:34:25.635Z","updated_by_name":"Administrator"},{"sw_name":"Traqplan Timeline","unit_price":"50392.24","currency":"INR","updated_at":"2026-07-14T11:31:30.338Z","updated_by_name":null}],"rate":{"rate":83.5,"asOf":null,"source":"fallback"}};
+  var kpiMode = 'all'; // all | allocated | unallocated
+  var chart = null;
+  var esc = function(s) { return String(s).replace(/[&<>"]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+
+  function renderKpis() {
+    var a = data.allocation.kpis;
+    document.getElementById('la-kpi-total').textContent = a.totalSoftware;
+    document.getElementById('la-kpi-allocated').textContent = a.allocated;
+    document.getElementById('la-kpi-unallocated').textContent = a.notAllocated;
+  }
+
+  // Vibrant, distinct-per-bar palette — deliberately different from the blue
+  // used everywhere else in License Management, so this dashboard reads as
+  // its own space. Extends past the base set with a golden-angle hue spin so
+  // it never runs out of distinct colors as more software titles appear.
+  var LA_PALETTE = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#eab308', '#f43f5e', '#84cc16', '#6366f1', '#0ea5e9'];
+  function laColor(i) {
+    if (i < LA_PALETTE.length) return LA_PALETTE[i];
+    return 'hsl(' + ((i * 137.508) % 360).toFixed(0) + ', 70%, 60%)';
+  }
+
+  function renderChart() {
+    var el = document.getElementById('la-chart');
+    var empty = document.getElementById('la-chart-empty');
+    var has = data.allocation.chart.length > 0;
+    el.style.display = has ? '' : 'none';
+    empty.classList.toggle('hidden', has);
+    if (chart) { chart.destroy(); chart = null; }
+    if (!has) return;
+
+    // Compact by design: a fixed, small per-bar height rather than the old
+    // formula that let the card balloon past 470px. The card caps at 260px
+    // via its own overflow-y wrapper, so any overflow scrolls instead of
+    // pushing the rest of the page down.
+    var names = data.allocation.chart.map(function(c) { return c.name; });
+    var qtys = data.allocation.chart.map(function(c) { return c.qty; });
+    var barHeight = 22;
+    var chartHeight = Math.max(140, names.length * 30 + 20);
+
+    var barColors = names.map(function(_, i) { return laColor(i); });
+    var opts = {
+      chart: {
+        type: 'bar', height: chartHeight, toolbar: { show: false },
+        foreColor: '#94a3b8', background: 'transparent',
+        animations: { speed: 300 }
+      },
+      theme: { mode: 'dark' },
+      grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4, padding: { top: -10, bottom: -6 }, xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
+      series: [{ name: 'Quantity', data: qtys }],
+      colors: barColors,
+      fill: { type: 'gradient', gradient: { shade: 'dark', type: 'horizontal', gradientToColors: barColors, opacityFrom: 1, opacityTo: 0.55, stops: [0, 100] } },
+      plotOptions: {
+        bar: {
+          horizontal: true, distributed: true, barHeight: barHeight + 'px',
+          borderRadius: 5, borderRadiusApplication: 'end',
+          dataLabels: { position: 'top' }
+        }
+      },
+      dataLabels: {
+        enabled: true, offsetX: 14,
+        style: { fontSize: '10px', fontWeight: 600, colors: ['#e2e8f0'] },
+        background: { enabled: false },
+        formatter: function(v) { return v; }
+      },
+      stroke: { width: 0 },
+      xaxis: {
+        categories: names,
+        labels: { style: { fontSize: '9px' } }
+      },
+      yaxis: { labels: { style: { fontSize: '10px' } } },
+      legend: { show: false },
+      tooltip: {
+        theme: 'dark',
+        custom: function(opts) {
+          var i = opts.dataPointIndex;
+          return '<div style="padding:10px 12px;background:#141417;border:1px solid rgba(255,255,255,.1);border-left:3px solid ' + laColor(i) + ';border-radius:8px;font-size:12px">' +
+            '<div style="font-weight:600;color:#fff;margin-bottom:2px">' + esc(names[i]) + '</div>' +
+            '<div style="color:#cbd5e1">' + qtys[i] + ' license(s)</div></div>';
+        }
+      }
+    };
+    chart = new ApexCharts(el, opts);
+    chart.render();
+  }
+
+  function renderTable() {
+    var rows = data.allocation.records.filter(function(r) {
+      if (kpiMode === 'allocated') return r.allocated;
+      if (kpiMode === 'unallocated') return !r.allocated;
+      return true;
+    });
+    var body = document.getElementById('la-table-body');
+    document.getElementById('la-table-count').textContent = rows.length;
+    document.getElementById('la-table-title').textContent =
+      kpiMode === 'allocated' ? 'Allocated Users' : kpiMode === 'unallocated' ? 'Unallocated Licenses' : 'Allocation Records';
+    document.getElementById('la-col-software').textContent = kpiMode === 'allocated' ? 'Allocated Software' : 'Software';
+    document.getElementById('la-table-reset').classList.toggle('hidden', kpiMode === 'all');
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="6" class="px-5 py-10 text-center text-slate-500">No records for the selected filters</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(function(r) {
+      var user = r.user
+        ? '<span class="text-white">' + esc(r.user) + '</span>'
+        : '<span class="text-slate-500 italic">Unassigned</span>';
+      var status = r.allocated
+        ? '<span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-semibold">ALLOCATED</span>'
+        : '<span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-semibold">NOT ALLOCATED</span>';
+      return '<tr class="hover:bg-white/[.02]">' +
+        '<td class="px-5 py-3">' + user + '</td>' +
+        '<td class="px-5 py-3 text-slate-300">' + esc(r.software) + '</td>' +
+        '<td class="px-5 py-3 text-slate-400">' + r.qty + '</td>' +
+        '<td class="px-5 py-3 text-slate-400">' + esc(r.client || '—') + '</td>' +
+        '<td class="px-5 py-3 text-slate-400">' + esc(r.market || '—') + '</td>' +
+        '<td class="px-5 py-3">' + status + '</td></tr>';
+    }).join('');
+  }
+
+  function highlightKpi() {
+    document.querySelectorAll('.la-kpi').forEach(function(card) {
+      var active = card.dataset.kpi === kpiMode && kpiMode !== 'all';
+      card.classList.toggle('ring-2', active);
+      card.classList.toggle('ring-blue-500/60', active);
+    });
+  }
+
+  // ─────────────────────── Budget & Cost Forecast ───────────────────────
+  var currency = 'INR';
+  var costChart = null, forecastChart = null;
+  var sortMode = 'cost_desc';
+  var pricePage = 1;
+  var PRICE_PAGE_SIZE = 5;
+
+  function fmtMoney(inr) {
+    if (inr === null || inr === undefined || Number.isNaN(inr)) return '—';
+    if (currency === 'USD') {
+      return '$' + (inr / data.rate.rate).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+    return '₹' + inr.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  }
+
+  function renderRateNote() {
+    var r = data.rate;
+    var label = r.source === 'live' ? 'live rate' : r.source === 'cached' ? 'cached rate' : 'fallback rate';
+    document.getElementById('bf-rate-note').textContent =
+      '1 USD = ' + r.rate.toFixed(2) + ' INR (' + label + ')';
+  }
+
+  function renderBudgetKpis() {
+    var k = data.budget.kpis, f = data.budget.forecast;
+    document.getElementById('bf-kpi-total-software').textContent = k.totalSoftware;
+    document.getElementById('bf-kpi-total-licenses').textContent = k.totalLicenses;
+    document.getElementById('bf-kpi-allocated').textContent = k.allocatedLicenses;
+    document.getElementById('bf-kpi-unallocated').textContent = k.unallocatedLicenses;
+    document.getElementById('bf-kpi-spending').textContent = fmtMoney(k.totalSpending);
+    document.getElementById('bf-kpi-per-license').textContent = fmtMoney(k.spendingPerAllocatedLicense);
+    document.getElementById('bf-kpi-budget').textContent = fmtMoney(f.predictedBudget);
+    document.getElementById('bf-kpi-budget-note').textContent =
+      (f.growthRate >= 0 ? '+' : '') + (f.growthRate * 100).toFixed(1) + '% growth (' + f.growthSource + ')';
+    document.getElementById('bf-kpi-savings').textContent = fmtMoney(f.estimatedSavings);
+    document.getElementById('bf-kpi-savings-note').textContent =
+      'Unused ' + fmtMoney(f.unallocatedCost) + ' + Duplicate ' + fmtMoney(f.duplicateCost);
+    document.getElementById('bf-growth-note').textContent =
+      'Growth model: ' + (f.growthSource === 'historical'
+        ? 'derived from actual year-over-year quantity trend in this scope.'
+        : 'derived from current allocation/utilization rate (insufficient purchase-date history for a trend).');
+
+    var banner = document.getElementById('bf-missing-price-banner');
+    if (data.budget.missingPriceCount > 0) {
+      banner.classList.remove('hidden');
+      document.getElementById('bf-missing-price-text').textContent =
+        data.budget.missingPriceCount + ' software need a price set below — excluded from spending totals until priced: ' +
+        data.budget.missingPriceSoftware.join(', ');
+    } else {
+      banner.classList.add('hidden');
+    }
+  }
+
+  function sortedCostAnalysis() {
+    var rows = data.budget.costAnalysis.slice();
+    if (sortMode === 'cost_desc') rows.sort(function(a, b) { return b.totalCost - a.totalCost; });
+    else if (sortMode === 'cost_asc') rows.sort(function(a, b) { return a.totalCost - b.totalCost; });
+    else if (sortMode === 'qty_desc') rows.sort(function(a, b) { return b.qty - a.qty; });
+    else if (sortMode === 'savings_desc') rows.sort(function(a, b) { return b.savingsOpportunity - a.savingsOpportunity; });
+    return rows;
+  }
+
+  function renderCostChart() {
+    var el = document.getElementById('bf-cost-chart');
+    var empty = document.getElementById('bf-cost-chart-empty');
+    var rows = sortedCostAnalysis();
+    var has = rows.length > 0;
+    el.style.display = has ? '' : 'none';
+    empty.classList.toggle('hidden', has);
+    if (costChart) { costChart.destroy(); costChart = null; }
+    if (!has) return;
+
+    var names = rows.map(function(r) { return r.name + (r.missingPrice ? ' (no price)' : ''); });
+    var costs = rows.map(function(r) { return currency === 'USD' ? r.totalCost / data.rate.rate : r.totalCost; });
+    var barHeight = Math.min(56, Math.max(30, Math.floor(320 / names.length)));
+    var chartHeight = Math.max(300, names.length * (barHeight + 14) + 40);
+
+    costChart = new ApexCharts(el, {
+      chart: { type: 'bar', height: chartHeight, toolbar: { show: false }, foreColor: '#94a3b8', background: 'transparent' },
+      theme: { mode: 'dark' },
+      grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4, yaxis: { lines: { show: false } } },
+      series: [{ name: 'Total Cost', data: costs }],
+      colors: ['#10b981'],
+      plotOptions: { bar: { horizontal: true, barHeight: barHeight + 'px', borderRadius: 6, borderRadiusApplication: 'end' } },
+      dataLabels: { enabled: false },
+      stroke: { width: 0 },
+      xaxis: { categories: names, title: { text: 'Total Cost (' + currency + ')', style: { fontSize: '11px', color: '#64748b' } }, labels: { style: { fontSize: '10px' }, formatter: function(v) { return Math.round(v).toLocaleString(); } } },
+      yaxis: { labels: { style: { fontSize: '11px' } } },
+      tooltip: {
+        theme: 'dark',
+        custom: function(opts) {
+          var r = rows[opts.dataPointIndex];
+          return '<div style="padding:10px 12px;background:#141417;border:1px solid rgba(255,255,255,.1);border-left:3px solid #10b981;border-radius:8px;font-size:12px">' +
+            '<div style="font-weight:600;color:#fff;margin-bottom:2px">' + esc(r.name) + '</div>' +
+            '<div style="color:#cbd5e1">Cost: <b>' + fmtMoney(r.totalCost) + '</b></div>' +
+            '<div style="color:#cbd5e1">Qty: ' + r.qty + '</div>' +
+            '<div style="color:#f59e0b">Savings opportunity: ' + fmtMoney(r.savingsOpportunity) + '</div></div>';
+        }
+      }
+    });
+    costChart.render();
+  }
+
+  function renderForecastChart() {
+    var el = document.getElementById('bf-forecast-chart');
+    var f = data.budget.forecast;
+    var vals = [f.currentSpending, f.predictedBudget, f.estimatedSavings];
+    if (currency === 'USD') vals = vals.map(function(v) { return v / data.rate.rate; });
+    if (forecastChart) { forecastChart.destroy(); forecastChart = null; }
+    forecastChart = new ApexCharts(el, {
+      chart: { type: 'area', height: 300, toolbar: { show: false }, foreColor: '#94a3b8', background: 'transparent' },
+      theme: { mode: 'dark' },
+      grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4 },
+      series: [{ name: 'Amount', data: vals }],
+      colors: ['#8b5cf6'],
+      fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.5, opacityTo: 0.05, stops: [0, 100] } },
+      stroke: { curve: 'smooth', width: 3 },
+      markers: { size: 6, colors: ['#8b5cf6'], strokeColors: '#141417', strokeWidth: 2 },
+      dataLabels: {
+        enabled: true, offsetY: -12,
+        style: { fontSize: '12px', fontWeight: 600, colors: ['#e2e8f0'] },
+        formatter: function(v) { return fmtMoney(currency === 'USD' ? v * data.rate.rate : v); }
+      },
+      xaxis: { categories: ['Current Spending', 'Predicted Spending', 'Potential Savings'], labels: { style: { fontSize: '11px' } } },
+      yaxis: { labels: { formatter: function(v) { return Math.round(v).toLocaleString(); } } },
+      tooltip: { theme: 'dark', y: { formatter: function(v) { return fmtMoney(currency === 'USD' ? v * data.rate.rate : v); } } }
+    });
+    forecastChart.render();
+  }
+
+  function renderPriceTable() {
+    var rows = data.prices;
+    var totalPages = Math.max(1, Math.ceil(rows.length / PRICE_PAGE_SIZE));
+    if (pricePage > totalPages) pricePage = totalPages;
+    var start = (pricePage - 1) * PRICE_PAGE_SIZE;
+    var pageRows = rows.slice(start, start + PRICE_PAGE_SIZE);
+    var body = document.getElementById('bf-price-body');
+
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="5" class="px-5 py-10 text-center text-slate-500">No software for the selected filters</td></tr>';
+    } else {
+      body.innerHTML = pageRows.map(function(p, idx) {
+        var i = start + idx;
+        var priceVal = p.unit_price != null ? Number(p.unit_price) : '';
+        var updated = p.updated_at ? new Date(p.updated_at).toLocaleDateString() : '—';
+        return '<tr class="hover:bg-white/[.02]">' +
+          '<td class="px-5 py-3 text-slate-200">' + esc(p.sw_name) + (p.unit_price == null ? ' <span class="text-amber-400 text-[10px] font-semibold ml-1">NEEDS PRICE</span>' : '') + '</td>' +
+          '<td class="px-5 py-3"><input type="number" min="0" step="0.01" data-price-input="' + i + '" value="' + priceVal + '" placeholder="Set price" class="w-32 px-2.5 py-1.5 rounded-lg bg-hams-bg border border-white/10 text-sm text-slate-200"></td>' +
+          '<td class="px-5 py-3 text-slate-400">' + esc(p.currency) + '</td>' +
+          '<td class="px-5 py-3 text-slate-400">' + updated + (p.updated_by_name ? ' <span class="text-slate-600">by ' + esc(p.updated_by_name) + '</span>' : '') + '</td>' +
+          '<td class="px-5 py-3 text-right"><button data-save-price="' + i + '" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium">Save</button></td></tr>';
+      }).join('');
+    }
+
+    var pag = document.getElementById('bf-price-pagination');
+    if (rows.length <= PRICE_PAGE_SIZE) { pag.innerHTML = ''; }
+    else {
+      pag.innerHTML =
+        '<span>Page ' + pricePage + ' of ' + totalPages + ' · ' + rows.length + ' software</span>' +
+        '<div class="flex gap-2">' +
+        '<button id="bf-price-prev" ' + (pricePage <= 1 ? 'disabled' : '') + ' class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed">Prev</button>' +
+        '<button id="bf-price-next" ' + (pricePage >= totalPages ? 'disabled' : '') + ' class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed">Next</button>' +
+        '</div>';
+      var prev = document.getElementById('bf-price-prev'), next = document.getElementById('bf-price-next');
+      if (prev) prev.addEventListener('click', function() { pricePage--; renderPriceTable(); });
+      if (next) next.addEventListener('click', function() { pricePage++; renderPriceTable(); });
+    }
+
+    body.querySelectorAll('[data-save-price]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var i = Number(btn.dataset.savePrice);
+        var input = body.querySelector('[data-price-input="' + i + '"]');
+        var swName = rows[i].sw_name;
+        var val = Number(input.value);
+        if (input.value === '' || Number.isNaN(val) || val < 0) {
+          input.classList.add('border-rose-500');
+          return;
+        }
+        btn.disabled = true; btn.textContent = 'Saving…';
+        fetch(PRICE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ _csrf: CSRF_TOKEN, sw_name: swName, unit_price: val })
+        })
+          .then(function(res) { return res.json().then(function(body) { return { ok: res.ok, body: body }; }); })
+          .then(function(result) {
+            if (!result.ok || !result.body.success) throw new Error((result.body && result.body.error) || 'Save failed');
+            return refresh(); // reload every KPI/chart/table with the new price
+          })
+          .catch(function(err) {
+            btn.disabled = false; btn.textContent = 'Save';
+            input.classList.add('border-rose-500');
+            alert('Could not save price: ' + err.message);
+          });
+      });
+    });
+  }
+
+  function renderBudgetSection() {
+    renderRateNote();
+    renderBudgetKpis();
+    renderCostChart();
+    renderForecastChart();
+    renderPriceTable();
+  }
+
+  document.getElementById('bf-currency-toggle').addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-currency]');
+    if (!btn) return;
+    currency = btn.dataset.currency;
+    document.querySelectorAll('#bf-currency-toggle [data-currency]').forEach(function(b) {
+      var active = b === btn;
+      b.className = active ? 'px-4 py-1.5 bg-blue-600 text-white' : 'px-4 py-1.5 bg-white/5 text-slate-300';
+    });
+    renderBudgetKpis(); renderCostChart(); renderForecastChart();
+  });
+
+  document.getElementById('bf-sort').addEventListener('change', function() {
+    sortMode = this.value;
+    renderCostChart();
+  });
+
+  // ─────────────────────────────── Wiring ───────────────────────────────
+  function renderAll() {
+    renderKpis(); renderChart(); renderTable(); highlightKpi();
+    renderBudgetSection();
+  }
+
+  // Filters -> fetch fresh data, re-render everything, no page reload.
+  // requestSeq guards against out-of-order responses: when multiple dropdowns
+  // change quickly, two fetches race and the STALE one can land last — only
+  // the newest request is allowed to render.
+  var requestSeq = 0;
+  function refresh() {
+    var seq = ++requestSeq;
+    var client = document.getElementById('la-client').value;
+    var market = document.getElementById('la-market').value;
+    var swFilter = document.getElementById('bf-software').value;
+    var loading = document.getElementById('la-loading');
+    loading.classList.remove('hidden'); loading.classList.add('inline-flex');
+    var p = new URLSearchParams();
+    if (client) p.set('client', client);
+    if (market) p.set('market', market);
+    if (swFilter) p.set('software', swFilter);
+    // Keep the URL shareable without reloading.
+    history.replaceState(null, '', location.pathname + (p.toString() ? '?' + p.toString() : ''));
+    return fetch(DATA_URL + '?' + p.toString(), { headers: { 'Accept': 'application/json' } })
+      .then(function(res) { if (!res.ok) throw new Error('Failed to load data'); return res.json(); })
+      .then(function(fresh) {
+        if (seq !== requestSeq) return; // a newer request superseded this one
+        data = fresh; renderAll();
+      })
+      .catch(function() {
+        if (seq !== requestSeq) return;
+        document.getElementById('la-table-body').innerHTML =
+          '<tr><td colspan="6" class="px-5 py-10 text-center text-rose-400">Could not load data — please try again</td></tr>';
+      })
+      .finally(function() {
+        if (seq !== requestSeq) return;
+        loading.classList.add('hidden'); loading.classList.remove('inline-flex');
+      });
+  }
+
+  document.getElementById('la-client').addEventListener('change', refresh);
+  document.getElementById('la-market').addEventListener('change', refresh);
+  document.getElementById('bf-software').addEventListener('change', refresh);
+  document.querySelectorAll('.la-kpi').forEach(function(card) {
+    card.addEventListener('click', function() {
+      var mode = card.dataset.kpi;
+      kpiMode = (kpiMode === mode) ? 'all' : mode; // click again to deselect
+      renderTable(); highlightKpi();
+    });
+  });
+  document.getElementById('la-table-reset').addEventListener('click', function() {
+    kpiMode = 'all'; renderTable(); highlightKpi();
+  });
+
+  renderAll();
+})();
+</script>
+
+    </div>
+  </main>
+</div>
+
+
+<!-- HAMS AI Assistant drawer -->
+<div id="hams-ai-backdrop" class="fixed inset-0 z-[170] hidden bg-black/50 backdrop-blur-sm"></div>
+<div id="hams-ai-panel" class="fixed inset-y-0 right-0 z-[180] w-full sm:w-[440px] hidden flex-col bg-hams-card border-l border-white/10 shadow-2xl">
+  <div class="flex items-center gap-3 px-5 py-4 border-b border-white/5 shrink-0">
+    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center text-white"><i data-lucide="sparkles" class="w-4 h-4"></i></span>
+    <div class="min-w-0">
+      <div class="font-heading font-semibold text-white text-sm">HAMS AI Assistant</div>
+      <div class="text-[11px] text-slate-500">Answers from your live data — markets, clients, software, spend &amp; more</div>
+    </div>
+    <button id="hams-ai-close" class="ml-auto p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+  </div>
+
+  <div id="hams-ai-messages" class="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-sm"></div>
+
+  <div id="hams-ai-suggestions" class="px-5 pb-2 shrink-0 flex flex-wrap gap-2">
+    <button data-ai-suggest="How many software products do we have for Athena in HMT2?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Software for Athena in HMT2</button>
+    <button data-ai-suggest="Which market has the highest number of licenses?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Top market by licenses</button>
+    <button data-ai-suggest="What are our estimated savings?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Estimated savings</button>
+    <button data-ai-suggest="What renews in the next 90 days?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Upcoming renewals</button>
+    <button data-ai-suggest="What can you do?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">What can you do?</button>
+  </div>
+
+  <div class="px-5 py-4 border-t border-white/5 shrink-0">
+    <form id="hams-ai-form" class="flex items-center gap-2">
+      <input id="hams-ai-input" type="text" maxlength="500" placeholder="Ask about markets, clients, software, spend…" autocomplete="off"
+             class="flex-1 px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm text-slate-200 focus:border-violet-500/60 outline-none">
+      <button type="submit" id="hams-ai-send" class="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-40"><i data-lucide="send" class="w-4 h-4"></i></button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  var AI_URL = "http://localhost:3000/assistant/query";
+  var panel = document.getElementById('hams-ai-panel');
+  var backdrop = document.getElementById('hams-ai-backdrop');
+  var messages = document.getElementById('hams-ai-messages');
+  var suggestions = document.getElementById('hams-ai-suggestions');
+  var input = document.getElementById('hams-ai-input');
+  var sendBtn = document.getElementById('hams-ai-send');
+  var esc = function(s) { return String(s).replace(/[&<>"]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+  var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+  function openPanel() {
+    panel.classList.remove('hidden'); panel.classList.add('flex');
+    backdrop.classList.remove('hidden');
+    if (!messages.children.length) {
+      addBubble('bot', '<p>Hi! I answer questions straight from your HAMS data. Try one of the suggestions below, or ask anything about markets, clients, software, licenses, spending or renewals.</p>');
+    }
+    setTimeout(function() { input.focus(); }, 50);
+  }
+  function closePanel() {
+    panel.classList.add('hidden'); panel.classList.remove('flex');
+    backdrop.classList.add('hidden');
+  }
+  document.getElementById('hams-ai-btn').addEventListener('click', openPanel);
+  document.getElementById('hams-ai-close').addEventListener('click', closePanel);
+  backdrop.addEventListener('click', closePanel);
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closePanel(); });
+
+  function addBubble(who, html) {
+    var wrap = document.createElement('div');
+    if (who === 'user') {
+      wrap.className = 'flex justify-end';
+      wrap.innerHTML = '<div class="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-br-sm bg-blue-600 text-white">' + html + '</div>';
+    } else {
+      wrap.className = 'flex justify-start';
+      wrap.innerHTML = '<div class="max-w-[95%] px-4 py-3 rounded-2xl rounded-bl-sm bg-white/5 border border-white/5 text-slate-200 space-y-3 overflow-hidden">' + html + '</div>';
+    }
+    messages.appendChild(wrap);
+    messages.scrollTop = messages.scrollHeight;
+    return wrap;
+  }
+
+  function renderAnswer(a) {
+    var html = '';
+    if (a.summary) html += '<p class="leading-relaxed">' + esc(a.summary) + '</p>';
+    if (a.metrics && a.metrics.length) {
+      html += '<div class="grid grid-cols-2 gap-2">' + a.metrics.map(function(m) {
+        return '<div class="px-3 py-2 rounded-xl bg-white/5 border border-white/5"><div class="text-[10px] uppercase tracking-wider text-slate-500">' + esc(m.label) + '</div><div class="text-sm font-semibold text-white">' + esc(m.value) + '</div></div>';
+      }).join('') + '</div>';
+    }
+    if (a.table && a.table.rows && a.table.rows.length) {
+      html += '<div class="overflow-x-auto rounded-xl border border-white/10"><table class="w-full text-xs"><thead><tr class="text-left text-slate-500 uppercase bg-white/5">' +
+        a.table.columns.map(function(c) { return '<th class="px-3 py-2 whitespace-nowrap">' + esc(c) + '</th>'; }).join('') +
+        '</tr></thead><tbody class="divide-y divide-white/5">' +
+        a.table.rows.slice(0, 15).map(function(r) {
+          return '<tr>' + r.map(function(c) { return '<td class="px-3 py-2 whitespace-nowrap text-slate-300">' + esc(c) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>';
+      if (a.table.rows.length > 15) html += '<p class="text-[11px] text-slate-500">Showing 15 of ' + a.table.rows.length + ' rows.</p>';
+    }
+    if (a.insights && a.insights.length) {
+      html += '<div class="space-y-1">' + a.insights.map(function(i) {
+        return '<p class="text-[12px] text-slate-400 flex gap-1.5"><span class="text-violet-400">◆</span><span>' + esc(i) + '</span></p>';
+      }).join('') + '</div>';
+    }
+    if (a.recommendations && a.recommendations.length) {
+      html += '<div class="space-y-1">' + a.recommendations.map(function(r) {
+        return '<p class="text-[12px] text-emerald-300/90 flex gap-1.5"><span>→</span><span>' + esc(r) + '</span></p>';
+      }).join('') + '</div>';
+    }
+    return html || '<p>I could not build an answer for that.</p>';
+  }
+
+  function send(question) {
+    question = (question || '').trim();
+    if (!question) return;
+    suggestions.classList.add('hidden');
+    addBubble('user', esc(question));
+    input.value = '';
+    sendBtn.disabled = true;
+    var typing = addBubble('bot', '<span class="inline-flex gap-1 items-center text-slate-400"><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce"></span><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style="animation-delay:.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style="animation-delay:.3s"></span></span>');
+    fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _csrf: csrf, question: question })
+    })
+      .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(function(a) { typing.remove(); addBubble('bot', renderAnswer(a)); })
+      .catch(function(err) { typing.remove(); addBubble('bot', '<p class="text-rose-300">Something went wrong (' + esc(err.message) + '). Please try again.</p>'); })
+      .finally(function() { sendBtn.disabled = false; input.focus(); });
+  }
+
+  document.getElementById('hams-ai-form').addEventListener('submit', function(e) { e.preventDefault(); send(input.value); });
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); send(input.value); }
+  });
+  suggestions.addEventListener('click', function(e) {
+    var b = e.target.closest('[data-ai-suggest]');
+    if (b) send(b.dataset.aiSuggest);
+  });
+})();
+</script>
+
+
+<!-- Global confirm modal -->
+<div id="hams-confirm-modal" class="fixed inset-0 z-[200] hidden items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-400 flex items-center justify-center"><i data-lucide="triangle-alert" class="w-5 h-5"></i></span>
+      <h3 class="font-heading font-semibold text-white">Confirm Action</h3>
+    </div>
+    <p id="hams-confirm-message" class="text-sm text-slate-400 mb-5"></p>
+    <div class="flex justify-end gap-2">
+      <button data-confirm-cancel class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300 hover:bg-white/10">Cancel</button>
+      <button data-confirm-ok class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-sm text-white font-medium">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('load', function() { if (window.lucide) lucide.createIcons(); });
+document.addEventListener('DOMContentLoaded', function() { if (window.lucide) lucide.createIcons(); });
+
+// Global confirm modal wiring (data-confirm on forms, data-confirm-click on buttons)
+(function() {
+  var modal = document.getElementById('hams-confirm-modal');
+  var msgEl = document.getElementById('hams-confirm-message');
+  var pending = null;
+  function show(message, onOk) {
+    msgEl.textContent = message;
+    pending = onOk;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  function hide() { modal.classList.add('hidden'); modal.classList.remove('flex'); pending = null; }
+  modal.querySelector('[data-confirm-cancel]').addEventListener('click', hide);
+  modal.querySelector('[data-confirm-ok]').addEventListener('click', function() { var fn = pending; hide(); if (fn) fn(); });
+  document.addEventListener('submit', function(e) {
+    var form = e.target.closest('form[data-confirm]');
+    if (form && !form.dataset.confirmed) {
+      e.preventDefault();
+      show(form.dataset.confirm, function() { form.dataset.confirmed = '1'; form.submit(); });
+    }
+  }, true);
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-confirm-click]');
+    if (btn && !btn.dataset.confirmed) {
+      e.preventDefault();
+      show(btn.dataset.confirmClick, function() {
+        btn.dataset.confirmed = '1';
+        if (btn.formAction && btn.form) { btn.form.action = btn.formAction; btn.form.submit(); }
+        else btn.click();
+      });
+    }
+  }, true);
+})();
+
+// Barcode scan helper (BarcodeDetector with prompt fallback)
+document.addEventListener('click', async function(e) {
+  var btn = e.target.closest('[data-barcode-scan]');
+  if (!btn) return;
+  var fieldName = btn.dataset.barcodeScan;
+  var input = document.querySelector('[name="' + fieldName + '"], [data-barcode-target="' + fieldName + '"]');
+  if (!input) return;
+  var code = window.prompt('Scan or enter barcode value:');
+  if (code) { input.value = code; input.dispatchEvent(new Event('input')); }
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(function() {});
+  });
+}
+</script>
+</body>
+</html>

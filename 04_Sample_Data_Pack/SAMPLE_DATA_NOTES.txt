@@ -1,0 +1,20 @@
+SAMPLE DATA PACK - IT-HAMS Hackathon Submission
+================================================
+All data in this pack and in the running application is SYNTHETIC.
+
+1. Software_Asset_Synthetic_1000_enhanced.csv
+   - 1,000 synthetic software license records (8 products), enhanced by the
+     agent with three generated columns: Market Name (6 markets), Client Name
+     (10 clients), User Name (drawn from the app's synthetic employee
+     directory - never invented free-text names).
+   - Client names are public company names used purely as demo labels.
+   - Amounts/quantities are randomly generated; Qty normalized to the 0-10
+     policy range.
+
+2. sample-software-import.csv
+   - A minimal, valid file for demonstrating the Software tab's
+     "Import CSV/Excel" feature (upload -> validation preview -> confirm).
+   - To see validation working, change a Qty to a value above 10 and
+     re-upload: the row is flagged and excluded, nothing is written.
+
+No real PHI/PII is present anywhere in the submission.

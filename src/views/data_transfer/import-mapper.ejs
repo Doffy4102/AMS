@@ -1,0 +1,50 @@
+<div class="mb-8">
+  <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Import Mapper</h1>
+  <p class="text-sm text-slate-500 mt-1">Upload a CSV, then map columns to database fields</p>
+</div>
+
+<div class="flex flex-wrap gap-2 mb-6">
+  <% for (const t of tables) { %>
+  <a href="<%= hams_url('/data-transfer/import') %>?table=<%= t %>"
+     class="px-4 py-2 rounded-xl text-sm font-mono <%= t === currentTable ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400 hover:text-white' %>"><%= t %></a>
+  <% } %>
+</div>
+
+<% if (!csvHeaders) { %>
+<form method="POST" action="<%= hams_url('/data-transfer/import/upload') %>" enctype="multipart/form-data" class="bg-hams-card border border-white/5 rounded-3xl p-6 max-w-xl">
+  <%- csrf_field %>
+  <input type="hidden" name="table" value="<%= currentTable %>">
+  <label class="block text-xs font-medium text-slate-400 mb-2">CSV File</label>
+  <input type="file" name="csv_file" accept=".csv" required class="w-full text-sm text-slate-400 mb-4">
+  <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Upload &amp; Map</button>
+</form>
+<% } else { %>
+<form method="POST" action="<%= hams_url('/data-transfer/import/execute') %>" class="bg-hams-card border border-white/5 rounded-3xl p-6">
+  <%- csrf_field %>
+  <input type="hidden" name="table" value="<%= currentTable %>">
+  <input type="hidden" name="filepath" value="<%= filepath %>">
+  <h2 class="font-heading font-semibold text-white mb-4">Map CSV Columns &rarr; <span class="font-mono text-blue-400"><%= currentTable %></span></h2>
+  <div class="table-responsive mb-6">
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+        <th class="px-4 py-3">CSV Header</th><th class="px-4 py-3">Preview</th><th class="px-4 py-3">Maps To</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% csvHeaders.forEach((h, idx) => { %>
+        <tr>
+          <td class="px-4 py-3 text-white font-mono text-xs"><%= h %></td>
+          <td class="px-4 py-3 text-xs text-slate-500"><%= csvPreview.map(row => row[idx]).filter(Boolean).slice(0, 2).join(', ') %></td>
+          <td class="px-4 py-3">
+            <select name="mapping[<%= h %>]" class="w-full max-w-[220px] px-3 py-2 rounded-xl bg-hams-bg border border-white/10 text-sm font-mono">
+              <option value="">— skip —</option>
+              <% for (const col of dbColumns) { %><option value="<%= col %>" <%= col === h ? 'selected' : '' %>><%= col %></option><% } %>
+            </select>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium">Execute Import</button>
+</form>
+<% } %>

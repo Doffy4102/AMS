@@ -1,0 +1,41 @@
+IT-HAMS — HACKATHON SUBMISSION PACK (Team Lead)
+================================================
+Prepared per "Hackathon Team Lead Submission Instructions".
+Components below map to the required submission format. The two components
+handled separately (per team decision) are: Repo/ZIP access and the README
+run document — everything else is in this folder.
+
+CONTENTS
+--------
+01_DoD_Evidence.docx        Definition-of-Done evidence — 12-item checklist
+                            mapping the use-case DoD to verifiable evidence,
+                            plus a mapping to each judging criterion.
+                            (Scoring link: Functional)
+
+02_Demo_Script.docx         ~7-minute demo walkthrough: scene-by-scene run
+                            flow, key design decisions, final artifacts.
+                            (Scoring link: Demo quality)
+
+03_Compliance_Note.docx     Responsible-AI safeguards, human-in-the-loop
+                            checkpoints, PHI/PII safety, known risks and
+                            mitigations. (Scoring link: Compliance)
+
+04_Sample_Data_Pack/        Synthetic data only — enhanced 1,000-record
+                            software CSV (Market/Client/User columns) and a
+                            ready-to-upload import sample + notes.
+                            No real PHI/PII anywhere.
+
+05_Output_Artifacts/        Proof of execution and final deliverables:
+                            - run-evidence.txt  (login, 13 route checks,
+                              live DB stats, AI assistant round trips)
+                            - rendered-pages/   (actual server-rendered HTML
+                              of the 5 key screens, captured authenticated)
+                            - IT-HAMS_Project_Overview.pptx (leadership deck)
+
+QUICK FACTS
+-----------
+App:        IT-HAMS — Enterprise IT Hardware & Asset Management System
+Stack:      Node.js + Express, PostgreSQL, EJS/Tailwind/Alpine/ApexCharts
+Login:      admin@hams.inc / password  at  http://localhost:3000
+Demo data:  1,000 license records - 8 products - 6 markets - 10 clients -
+            311 users - 443 hardware assets (all synthetic)

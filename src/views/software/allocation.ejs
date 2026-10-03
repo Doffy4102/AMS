@@ -1,0 +1,631 @@
+<div class="space-y-6">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-heading font-semibold text-white mb-1">License Allocation &amp; Utilization</h1>
+      <p class="text-slate-400">Who holds which software licenses, by client and market</p>
+    </div>
+    <p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5"></i>Tip: click the Allocated / Not Allocated cards to filter the table</p>
+  </div>
+
+  <!-- Filters (drive every section, no page reload) -->
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-5 flex flex-wrap items-end gap-4">
+    <div>
+      <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">Client</label>
+      <select id="la-client" class="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-200 min-w-[220px]">
+        <option value="">All Clients</option>
+        <% options.clients.forEach(c => { %><option value="<%= c %>" <%= client === c ? 'selected' : '' %>><%= c %></option><% }) %>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">Market</label>
+      <select id="la-market" class="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-200 min-w-[180px]">
+        <option value="">All Markets</option>
+        <% options.markets.forEach(m => { %><option value="<%= m %>" <%= market === m ? 'selected' : '' %>><%= m %></option><% }) %>
+      </select>
+    </div>
+    <span id="la-loading" class="hidden items-center gap-2 text-sm text-slate-400">
+      <svg class="animate-spin w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
+      Updating…
+    </span>
+  </div>
+
+  <!-- KPI cards: Total resets the table filter; the other two filter it -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+    <button data-kpi="all" class="la-kpi text-left bg-white/5 border border-white/5 rounded-2xl p-6 hover:border-blue-500/40 transition">
+      <div class="flex items-center gap-3 mb-2">
+        <span class="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center"><i data-lucide="app-window" class="w-5 h-5"></i></span>
+        <span class="text-sm text-slate-400">Total Software</span>
+      </div>
+      <div id="la-kpi-total" class="text-3xl font-semibold text-white">—</div>
+      <div class="text-xs text-slate-500 mt-1">unique software titles</div>
+    </button>
+    <button data-kpi="allocated" class="la-kpi text-left bg-white/5 border border-white/5 rounded-2xl p-6 hover:border-emerald-500/40 transition">
+      <div class="flex items-center gap-3 mb-2">
+        <span class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center"><i data-lucide="user-check" class="w-5 h-5"></i></span>
+        <span class="text-sm text-slate-400">Allocated</span>
+      </div>
+      <div id="la-kpi-allocated" class="text-3xl font-semibold text-white">—</div>
+      <div class="text-xs text-slate-500 mt-1">license records with a user</div>
+    </button>
+    <button data-kpi="unallocated" class="la-kpi text-left bg-white/5 border border-white/5 rounded-2xl p-6 hover:border-amber-500/40 transition">
+      <div class="flex items-center gap-3 mb-2">
+        <span class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center"><i data-lucide="user-x" class="w-5 h-5"></i></span>
+        <span class="text-sm text-slate-400">Not Allocated</span>
+      </div>
+      <div id="la-kpi-unallocated" class="text-3xl font-semibold text-white">—</div>
+      <div class="text-xs text-slate-500 mt-1">license records without a user</div>
+    </button>
+  </div>
+
+  <!-- Bar chart: software vs quantity -->
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+    <h2 class="text-lg font-semibold text-white mb-1">Software vs Quantity</h2>
+    <p class="text-xs text-slate-500 mb-4">Total licensed quantity per software for the selected client and market</p>
+    <div class="overflow-y-auto" style="max-height: 260px;">
+      <div id="la-chart" class="w-full"></div>
+    </div>
+    <div id="la-chart-empty" class="hidden py-12 text-center text-sm text-slate-400">
+      <i data-lucide="bar-chart-2" class="w-8 h-8 mx-auto mb-3 opacity-40"></i>
+      No license data for the selected filters
+    </div>
+  </div>
+
+  <!-- Allocation table -->
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-lg font-semibold text-white mb-1" id="la-table-title">Allocation Records</h2>
+        <p class="text-xs text-slate-500"><span id="la-table-count">0</span> record(s) shown</p>
+      </div>
+      <button id="la-table-reset" class="hidden px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-slate-300">Show all records</button>
+    </div>
+    <div class="overflow-y-auto rounded-xl border border-white/5" style="max-height: 420px;">
+      <table class="w-full text-sm">
+        <thead class="sticky top-0 bg-hams-card">
+          <tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+            <th class="px-5 py-3">User Name</th>
+            <th class="px-5 py-3" id="la-col-software">Software</th>
+            <th class="px-5 py-3">Qty</th>
+            <th class="px-5 py-3">Client</th>
+            <th class="px-5 py-3">Market</th>
+            <th class="px-5 py-3">Status</th>
+          </tr>
+        </thead>
+        <tbody id="la-table-body" class="divide-y divide-white/5"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ───────────────────────── Budget & Cost Forecast ───────────────────────── -->
+  <div class="pt-2 border-t border-white/5">
+    <div class="flex flex-wrap items-end justify-between gap-4 mt-6 mb-1">
+      <div>
+        <h2 class="text-2xl font-heading font-semibold text-white mb-1">Budget &amp; Cost Forecast</h2>
+        <p class="text-slate-400 text-sm">Spending, savings and budget prediction from current software costs</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <p id="bf-rate-note" class="text-xs text-slate-500"></p>
+        <div id="bf-currency-toggle" class="flex items-center rounded-lg overflow-hidden border border-white/10 text-xs font-medium">
+          <button type="button" data-currency="INR" class="px-4 py-1.5 bg-blue-600 text-white">₹ INR</button>
+          <button type="button" data-currency="USD" class="px-4 py-1.5 bg-white/5 text-slate-300">$ USD</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-5 flex flex-wrap items-end gap-4">
+    <div>
+      <label class="block text-xs text-slate-400 uppercase tracking-wider mb-1">Software <span class="normal-case text-slate-600">(optional)</span></label>
+      <select id="bf-software" class="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-200 min-w-[240px]">
+        <option value="">All Software</option>
+        <% options.software.forEach(s => { %><option value="<%= s %>" <%= software === s ? 'selected' : '' %>><%= s %></option><% }) %>
+      </select>
+    </div>
+    <div id="bf-missing-price-banner" class="hidden ml-auto flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
+      <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
+      <span id="bf-missing-price-text"></span>
+    </div>
+  </div>
+
+  <!-- 8 KPI cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Total Software</div>
+      <div id="bf-kpi-total-software" class="text-2xl font-semibold text-white">—</div>
+    </div>
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Total Licenses</div>
+      <div id="bf-kpi-total-licenses" class="text-2xl font-semibold text-white">—</div>
+    </div>
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Allocated Licenses</div>
+      <div id="bf-kpi-allocated" class="text-2xl font-semibold text-emerald-400">—</div>
+    </div>
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Unallocated Licenses</div>
+      <div id="bf-kpi-unallocated" class="text-2xl font-semibold text-amber-400">—</div>
+    </div>
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Total License Spending</div>
+      <div id="bf-kpi-spending" class="text-2xl font-semibold text-white">—</div>
+    </div>
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-5">
+      <div class="text-xs text-slate-400 mb-1">Spending / Allocated License</div>
+      <div id="bf-kpi-per-license" class="text-2xl font-semibold text-white">—</div>
+    </div>
+    <div class="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-5">
+      <div class="text-xs text-violet-300 mb-1 flex items-center gap-1.5"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i>Estimated Budget Requirement</div>
+      <div id="bf-kpi-budget" class="text-2xl font-semibold text-white">—</div>
+      <div id="bf-kpi-budget-note" class="text-[11px] text-violet-300/70 mt-1"></div>
+    </div>
+    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
+      <div class="text-xs text-emerald-300 mb-1 flex items-center gap-1.5"><i data-lucide="piggy-bank" class="w-3.5 h-3.5"></i>Estimated Savings</div>
+      <div id="bf-kpi-savings" class="text-2xl font-semibold text-white">—</div>
+      <div id="bf-kpi-savings-note" class="text-[11px] text-emerald-300/70 mt-1"></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <!-- Software Cost Analysis -->
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
+        <h2 class="text-lg font-semibold text-white">Software Cost Analysis</h2>
+        <select id="bf-sort" class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-200">
+          <option value="cost_desc">Highest Cost</option>
+          <option value="cost_asc">Lowest Cost</option>
+          <option value="qty_desc">Highest Quantity</option>
+          <option value="savings_desc">Highest Savings Opportunity</option>
+        </select>
+      </div>
+      <p class="text-xs text-slate-500 mb-4">Total cost (price × quantity) per software</p>
+      <div id="bf-cost-chart" class="w-full" style="height: 300px;"></div>
+      <div id="bf-cost-chart-empty" class="hidden py-12 text-center text-sm text-slate-400">
+        <i data-lucide="bar-chart-2" class="w-8 h-8 mx-auto mb-3 opacity-40"></i>
+        No cost data for the selected filters
+      </div>
+    </div>
+
+    <!-- Budget Prediction -->
+    <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+      <h2 class="text-lg font-semibold text-white mb-1">Budget Prediction</h2>
+      <p class="text-xs text-slate-500 mb-4">Current spending → predicted spending → potential savings</p>
+      <div id="bf-forecast-chart" class="w-full" style="height: 300px;"></div>
+      <p id="bf-growth-note" class="text-[11px] text-slate-500 mt-2"></p>
+    </div>
+  </div>
+
+  <!-- Editable Software Price table -->
+  <div class="bg-white/5 border border-white/5 rounded-2xl p-6">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-white mb-1">Software Prices</h2>
+      <p class="text-xs text-slate-500">Editable unit price used in every cost/budget calculation above — saving refreshes the whole dashboard, no page reload</p>
+    </div>
+    <div class="overflow-y-auto rounded-xl border border-white/5" style="max-height: 320px;">
+      <table class="w-full text-sm">
+        <thead class="sticky top-0 bg-hams-card">
+          <tr class="text-left text-xs text-slate-500 uppercase border-b border-white/5">
+            <th class="px-5 py-3">Software Name</th>
+            <th class="px-5 py-3">Current Price</th>
+            <th class="px-5 py-3">Currency</th>
+            <th class="px-5 py-3">Last Updated</th>
+            <th class="px-5 py-3 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody id="bf-price-body" class="divide-y divide-white/5"></tbody>
+      </table>
+    </div>
+    <div id="bf-price-pagination" class="flex items-center justify-between mt-3 text-xs text-slate-500"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var DATA_URL = <%- JSON.stringify(hamsUrl('/license-allocation/data')) %>;
+  var PRICE_URL = <%- JSON.stringify(hamsUrl('/license-allocation/prices')) %>;
+  var CSRF_TOKEN = <%- JSON.stringify(csrf_token) %>;
+  var data = <%- JSON.stringify(data) %>;
+  var kpiMode = 'all'; // all | allocated | unallocated
+  var chart = null;
+  var esc = function(s) { return String(s).replace(/[&<>"]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+
+  function renderKpis() {
+    var a = data.allocation.kpis;
+    document.getElementById('la-kpi-total').textContent = a.totalSoftware;
+    document.getElementById('la-kpi-allocated').textContent = a.allocated;
+    document.getElementById('la-kpi-unallocated').textContent = a.notAllocated;
+  }
+
+  // Vibrant, distinct-per-bar palette — deliberately different from the blue
+  // used everywhere else in License Management, so this dashboard reads as
+  // its own space. Extends past the base set with a golden-angle hue spin so
+  // it never runs out of distinct colors as more software titles appear.
+  var LA_PALETTE = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#eab308', '#f43f5e', '#84cc16', '#6366f1', '#0ea5e9'];
+  function laColor(i) {
+    if (i < LA_PALETTE.length) return LA_PALETTE[i];
+    return 'hsl(' + ((i * 137.508) % 360).toFixed(0) + ', 70%, 60%)';
+  }
+
+  function renderChart() {
+    var el = document.getElementById('la-chart');
+    var empty = document.getElementById('la-chart-empty');
+    var has = data.allocation.chart.length > 0;
+    el.style.display = has ? '' : 'none';
+    empty.classList.toggle('hidden', has);
+    if (chart) { chart.destroy(); chart = null; }
+    if (!has) return;
+
+    // Compact by design: a fixed, small per-bar height rather than the old
+    // formula that let the card balloon past 470px. The card caps at 260px
+    // via its own overflow-y wrapper, so any overflow scrolls instead of
+    // pushing the rest of the page down.
+    var names = data.allocation.chart.map(function(c) { return c.name; });
+    var qtys = data.allocation.chart.map(function(c) { return c.qty; });
+    var barHeight = 22;
+    var chartHeight = Math.max(140, names.length * 30 + 20);
+
+    var barColors = names.map(function(_, i) { return laColor(i); });
+    var opts = {
+      chart: {
+        type: 'bar', height: chartHeight, toolbar: { show: false },
+        foreColor: '#94a3b8', background: 'transparent',
+        animations: { speed: 300 }
+      },
+      theme: { mode: 'dark' },
+      grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4, padding: { top: -10, bottom: -6 }, xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
+      series: [{ name: 'Quantity', data: qtys }],
+      colors: barColors,
+      fill: { type: 'gradient', gradient: { shade: 'dark', type: 'horizontal', gradientToColors: barColors, opacityFrom: 1, opacityTo: 0.55, stops: [0, 100] } },
+      plotOptions: {
+        bar: {
+          horizontal: true, distributed: true, barHeight: barHeight + 'px',
+          borderRadius: 5, borderRadiusApplication: 'end',
+          dataLabels: { position: 'top' }
+        }
+      },
+      dataLabels: {
+        enabled: true, offsetX: 14,
+        style: { fontSize: '10px', fontWeight: 600, colors: ['#e2e8f0'] },
+        background: { enabled: false },
+        formatter: function(v) { return v; }
+      },
+      stroke: { width: 0 },
+      xaxis: {
+        categories: names,
+        labels: { style: { fontSize: '9px' } }
+      },
+      yaxis: { labels: { style: { fontSize: '10px' } } },
+      legend: { show: false },
+      tooltip: {
+        theme: 'dark',
+        custom: function(opts) {
+          var i = opts.dataPointIndex;
+          return '<div style="padding:10px 12px;background:#141417;border:1px solid rgba(255,255,255,.1);border-left:3px solid ' + laColor(i) + ';border-radius:8px;font-size:12px">' +
+            '<div style="font-weight:600;color:#fff;margin-bottom:2px">' + esc(names[i]) + '</div>' +
+            '<div style="color:#cbd5e1">' + qtys[i] + ' license(s)</div></div>';
+        }
+      }
+    };
+    chart = new ApexCharts(el, opts);
+    chart.render();
+  }
+
+  function renderTable() {
+    var rows = data.allocation.records.filter(function(r) {
+      if (kpiMode === 'allocated') return r.allocated;
+      if (kpiMode === 'unallocated') return !r.allocated;
+      return true;
+    });
+    var body = document.getElementById('la-table-body');
+    document.getElementById('la-table-count').textContent = rows.length;
+    document.getElementById('la-table-title').textContent =
+      kpiMode === 'allocated' ? 'Allocated Users' : kpiMode === 'unallocated' ? 'Unallocated Licenses' : 'Allocation Records';
+    document.getElementById('la-col-software').textContent = kpiMode === 'allocated' ? 'Allocated Software' : 'Software';
+    document.getElementById('la-table-reset').classList.toggle('hidden', kpiMode === 'all');
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="6" class="px-5 py-10 text-center text-slate-500">No records for the selected filters</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(function(r) {
+      var user = r.user
+        ? '<span class="text-white">' + esc(r.user) + '</span>'
+        : '<span class="text-slate-500 italic">Unassigned</span>';
+      var status = r.allocated
+        ? '<span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-semibold">ALLOCATED</span>'
+        : '<span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-semibold">NOT ALLOCATED</span>';
+      return '<tr class="hover:bg-white/[.02]">' +
+        '<td class="px-5 py-3">' + user + '</td>' +
+        '<td class="px-5 py-3 text-slate-300">' + esc(r.software) + '</td>' +
+        '<td class="px-5 py-3 text-slate-400">' + r.qty + '</td>' +
+        '<td class="px-5 py-3 text-slate-400">' + esc(r.client || '—') + '</td>' +
+        '<td class="px-5 py-3 text-slate-400">' + esc(r.market || '—') + '</td>' +
+        '<td class="px-5 py-3">' + status + '</td></tr>';
+    }).join('');
+  }
+
+  function highlightKpi() {
+    document.querySelectorAll('.la-kpi').forEach(function(card) {
+      var active = card.dataset.kpi === kpiMode && kpiMode !== 'all';
+      card.classList.toggle('ring-2', active);
+      card.classList.toggle('ring-blue-500/60', active);
+    });
+  }
+
+  // ─────────────────────── Budget & Cost Forecast ───────────────────────
+  var currency = 'INR';
+  var costChart = null, forecastChart = null;
+  var sortMode = 'cost_desc';
+  var pricePage = 1;
+  var PRICE_PAGE_SIZE = 5;
+
+  function fmtMoney(inr) {
+    if (inr === null || inr === undefined || Number.isNaN(inr)) return '—';
+    if (currency === 'USD') {
+      return '$' + (inr / data.rate.rate).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+    return '₹' + inr.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  }
+
+  function renderRateNote() {
+    var r = data.rate;
+    var label = r.source === 'live' ? 'live rate' : r.source === 'cached' ? 'cached rate' : 'fallback rate';
+    document.getElementById('bf-rate-note').textContent =
+      '1 USD = ' + r.rate.toFixed(2) + ' INR (' + label + ')';
+  }
+
+  function renderBudgetKpis() {
+    var k = data.budget.kpis, f = data.budget.forecast;
+    document.getElementById('bf-kpi-total-software').textContent = k.totalSoftware;
+    document.getElementById('bf-kpi-total-licenses').textContent = k.totalLicenses;
+    document.getElementById('bf-kpi-allocated').textContent = k.allocatedLicenses;
+    document.getElementById('bf-kpi-unallocated').textContent = k.unallocatedLicenses;
+    document.getElementById('bf-kpi-spending').textContent = fmtMoney(k.totalSpending);
+    document.getElementById('bf-kpi-per-license').textContent = fmtMoney(k.spendingPerAllocatedLicense);
+    document.getElementById('bf-kpi-budget').textContent = fmtMoney(f.predictedBudget);
+    document.getElementById('bf-kpi-budget-note').textContent =
+      (f.growthRate >= 0 ? '+' : '') + (f.growthRate * 100).toFixed(1) + '% growth (' + f.growthSource + ')';
+    document.getElementById('bf-kpi-savings').textContent = fmtMoney(f.estimatedSavings);
+    document.getElementById('bf-kpi-savings-note').textContent =
+      'Unused ' + fmtMoney(f.unallocatedCost) + ' + Duplicate ' + fmtMoney(f.duplicateCost);
+    document.getElementById('bf-growth-note').textContent =
+      'Growth model: ' + (f.growthSource === 'historical'
+        ? 'derived from actual year-over-year quantity trend in this scope.'
+        : 'derived from current allocation/utilization rate (insufficient purchase-date history for a trend).');
+
+    var banner = document.getElementById('bf-missing-price-banner');
+    if (data.budget.missingPriceCount > 0) {
+      banner.classList.remove('hidden');
+      document.getElementById('bf-missing-price-text').textContent =
+        data.budget.missingPriceCount + ' software need a price set below — excluded from spending totals until priced: ' +
+        data.budget.missingPriceSoftware.join(', ');
+    } else {
+      banner.classList.add('hidden');
+    }
+  }
+
+  function sortedCostAnalysis() {
+    var rows = data.budget.costAnalysis.slice();
+    if (sortMode === 'cost_desc') rows.sort(function(a, b) { return b.totalCost - a.totalCost; });
+    else if (sortMode === 'cost_asc') rows.sort(function(a, b) { return a.totalCost - b.totalCost; });
+    else if (sortMode === 'qty_desc') rows.sort(function(a, b) { return b.qty - a.qty; });
+    else if (sortMode === 'savings_desc') rows.sort(function(a, b) { return b.savingsOpportunity - a.savingsOpportunity; });
+    return rows;
+  }
+
+  function renderCostChart() {
+    var el = document.getElementById('bf-cost-chart');
+    var empty = document.getElementById('bf-cost-chart-empty');
+    var rows = sortedCostAnalysis();
+    var has = rows.length > 0;
+    el.style.display = has ? '' : 'none';
+    empty.classList.toggle('hidden', has);
+    if (costChart) { costChart.destroy(); costChart = null; }
+    if (!has) return;
+
+    var names = rows.map(function(r) { return r.name + (r.missingPrice ? ' (no price)' : ''); });
+    var costs = rows.map(function(r) { return currency === 'USD' ? r.totalCost / data.rate.rate : r.totalCost; });
+    var barHeight = Math.min(56, Math.max(30, Math.floor(320 / names.length)));
+    var chartHeight = Math.max(300, names.length * (barHeight + 14) + 40);
+
+    costChart = new ApexCharts(el, {
+      chart: { type: 'bar', height: chartHeight, toolbar: { show: false }, foreColor: '#94a3b8', background: 'transparent' },
+      theme: { mode: 'dark' },
+      grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4, yaxis: { lines: { show: false } } },
+      series: [{ name: 'Total Cost', data: costs }],
+      colors: ['#10b981'],
+      plotOptions: { bar: { horizontal: true, barHeight: barHeight + 'px', borderRadius: 6, borderRadiusApplication: 'end' } },
+      dataLabels: { enabled: false },
+      stroke: { width: 0 },
+      xaxis: { categories: names, title: { text: 'Total Cost (' + currency + ')', style: { fontSize: '11px', color: '#64748b' } }, labels: { style: { fontSize: '10px' }, formatter: function(v) { return Math.round(v).toLocaleString(); } } },
+      yaxis: { labels: { style: { fontSize: '11px' } } },
+      tooltip: {
+        theme: 'dark',
+        custom: function(opts) {
+          var r = rows[opts.dataPointIndex];
+          return '<div style="padding:10px 12px;background:#141417;border:1px solid rgba(255,255,255,.1);border-left:3px solid #10b981;border-radius:8px;font-size:12px">' +
+            '<div style="font-weight:600;color:#fff;margin-bottom:2px">' + esc(r.name) + '</div>' +
+            '<div style="color:#cbd5e1">Cost: <b>' + fmtMoney(r.totalCost) + '</b></div>' +
+            '<div style="color:#cbd5e1">Qty: ' + r.qty + '</div>' +
+            '<div style="color:#f59e0b">Savings opportunity: ' + fmtMoney(r.savingsOpportunity) + '</div></div>';
+        }
+      }
+    });
+    costChart.render();
+  }
+
+  function renderForecastChart() {
+    var el = document.getElementById('bf-forecast-chart');
+    var f = data.budget.forecast;
+    var vals = [f.currentSpending, f.predictedBudget, f.estimatedSavings];
+    if (currency === 'USD') vals = vals.map(function(v) { return v / data.rate.rate; });
+    if (forecastChart) { forecastChart.destroy(); forecastChart = null; }
+    forecastChart = new ApexCharts(el, {
+      chart: { type: 'area', height: 300, toolbar: { show: false }, foreColor: '#94a3b8', background: 'transparent' },
+      theme: { mode: 'dark' },
+      grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4 },
+      series: [{ name: 'Amount', data: vals }],
+      colors: ['#8b5cf6'],
+      fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.5, opacityTo: 0.05, stops: [0, 100] } },
+      stroke: { curve: 'smooth', width: 3 },
+      markers: { size: 6, colors: ['#8b5cf6'], strokeColors: '#141417', strokeWidth: 2 },
+      dataLabels: {
+        enabled: true, offsetY: -12,
+        style: { fontSize: '12px', fontWeight: 600, colors: ['#e2e8f0'] },
+        formatter: function(v) { return fmtMoney(currency === 'USD' ? v * data.rate.rate : v); }
+      },
+      xaxis: { categories: ['Current Spending', 'Predicted Spending', 'Potential Savings'], labels: { style: { fontSize: '11px' } } },
+      yaxis: { labels: { formatter: function(v) { return Math.round(v).toLocaleString(); } } },
+      tooltip: { theme: 'dark', y: { formatter: function(v) { return fmtMoney(currency === 'USD' ? v * data.rate.rate : v); } } }
+    });
+    forecastChart.render();
+  }
+
+  function renderPriceTable() {
+    var rows = data.prices;
+    var totalPages = Math.max(1, Math.ceil(rows.length / PRICE_PAGE_SIZE));
+    if (pricePage > totalPages) pricePage = totalPages;
+    var start = (pricePage - 1) * PRICE_PAGE_SIZE;
+    var pageRows = rows.slice(start, start + PRICE_PAGE_SIZE);
+    var body = document.getElementById('bf-price-body');
+
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="5" class="px-5 py-10 text-center text-slate-500">No software for the selected filters</td></tr>';
+    } else {
+      body.innerHTML = pageRows.map(function(p, idx) {
+        var i = start + idx;
+        var priceVal = p.unit_price != null ? Number(p.unit_price) : '';
+        var updated = p.updated_at ? new Date(p.updated_at).toLocaleDateString() : '—';
+        return '<tr class="hover:bg-white/[.02]">' +
+          '<td class="px-5 py-3 text-slate-200">' + esc(p.sw_name) + (p.unit_price == null ? ' <span class="text-amber-400 text-[10px] font-semibold ml-1">NEEDS PRICE</span>' : '') + '</td>' +
+          '<td class="px-5 py-3"><input type="number" min="0" step="0.01" data-price-input="' + i + '" value="' + priceVal + '" placeholder="Set price" class="w-32 px-2.5 py-1.5 rounded-lg bg-hams-bg border border-white/10 text-sm text-slate-200"></td>' +
+          '<td class="px-5 py-3 text-slate-400">' + esc(p.currency) + '</td>' +
+          '<td class="px-5 py-3 text-slate-400">' + updated + (p.updated_by_name ? ' <span class="text-slate-600">by ' + esc(p.updated_by_name) + '</span>' : '') + '</td>' +
+          '<td class="px-5 py-3 text-right"><button data-save-price="' + i + '" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium">Save</button></td></tr>';
+      }).join('');
+    }
+
+    var pag = document.getElementById('bf-price-pagination');
+    if (rows.length <= PRICE_PAGE_SIZE) { pag.innerHTML = ''; }
+    else {
+      pag.innerHTML =
+        '<span>Page ' + pricePage + ' of ' + totalPages + ' · ' + rows.length + ' software</span>' +
+        '<div class="flex gap-2">' +
+        '<button id="bf-price-prev" ' + (pricePage <= 1 ? 'disabled' : '') + ' class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed">Prev</button>' +
+        '<button id="bf-price-next" ' + (pricePage >= totalPages ? 'disabled' : '') + ' class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed">Next</button>' +
+        '</div>';
+      var prev = document.getElementById('bf-price-prev'), next = document.getElementById('bf-price-next');
+      if (prev) prev.addEventListener('click', function() { pricePage--; renderPriceTable(); });
+      if (next) next.addEventListener('click', function() { pricePage++; renderPriceTable(); });
+    }
+
+    body.querySelectorAll('[data-save-price]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var i = Number(btn.dataset.savePrice);
+        var input = body.querySelector('[data-price-input="' + i + '"]');
+        var swName = rows[i].sw_name;
+        var val = Number(input.value);
+        if (input.value === '' || Number.isNaN(val) || val < 0) {
+          input.classList.add('border-rose-500');
+          return;
+        }
+        btn.disabled = true; btn.textContent = 'Saving…';
+        fetch(PRICE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ _csrf: CSRF_TOKEN, sw_name: swName, unit_price: val })
+        })
+          .then(function(res) { return res.json().then(function(body) { return { ok: res.ok, body: body }; }); })
+          .then(function(result) {
+            if (!result.ok || !result.body.success) throw new Error((result.body && result.body.error) || 'Save failed');
+            return refresh(); // reload every KPI/chart/table with the new price
+          })
+          .catch(function(err) {
+            btn.disabled = false; btn.textContent = 'Save';
+            input.classList.add('border-rose-500');
+            alert('Could not save price: ' + err.message);
+          });
+      });
+    });
+  }
+
+  function renderBudgetSection() {
+    renderRateNote();
+    renderBudgetKpis();
+    renderCostChart();
+    renderForecastChart();
+    renderPriceTable();
+  }
+
+  document.getElementById('bf-currency-toggle').addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-currency]');
+    if (!btn) return;
+    currency = btn.dataset.currency;
+    document.querySelectorAll('#bf-currency-toggle [data-currency]').forEach(function(b) {
+      var active = b === btn;
+      b.className = active ? 'px-4 py-1.5 bg-blue-600 text-white' : 'px-4 py-1.5 bg-white/5 text-slate-300';
+    });
+    renderBudgetKpis(); renderCostChart(); renderForecastChart();
+  });
+
+  document.getElementById('bf-sort').addEventListener('change', function() {
+    sortMode = this.value;
+    renderCostChart();
+  });
+
+  // ─────────────────────────────── Wiring ───────────────────────────────
+  function renderAll() {
+    renderKpis(); renderChart(); renderTable(); highlightKpi();
+    renderBudgetSection();
+  }
+
+  // Filters -> fetch fresh data, re-render everything, no page reload.
+  // requestSeq guards against out-of-order responses: when multiple dropdowns
+  // change quickly, two fetches race and the STALE one can land last — only
+  // the newest request is allowed to render.
+  var requestSeq = 0;
+  function refresh() {
+    var seq = ++requestSeq;
+    var client = document.getElementById('la-client').value;
+    var market = document.getElementById('la-market').value;
+    var swFilter = document.getElementById('bf-software').value;
+    var loading = document.getElementById('la-loading');
+    loading.classList.remove('hidden'); loading.classList.add('inline-flex');
+    var p = new URLSearchParams();
+    if (client) p.set('client', client);
+    if (market) p.set('market', market);
+    if (swFilter) p.set('software', swFilter);
+    // Keep the URL shareable without reloading.
+    history.replaceState(null, '', location.pathname + (p.toString() ? '?' + p.toString() : ''));
+    return fetch(DATA_URL + '?' + p.toString(), { headers: { 'Accept': 'application/json' } })
+      .then(function(res) { if (!res.ok) throw new Error('Failed to load data'); return res.json(); })
+      .then(function(fresh) {
+        if (seq !== requestSeq) return; // a newer request superseded this one
+        data = fresh; renderAll();
+      })
+      .catch(function() {
+        if (seq !== requestSeq) return;
+        document.getElementById('la-table-body').innerHTML =
+          '<tr><td colspan="6" class="px-5 py-10 text-center text-rose-400">Could not load data — please try again</td></tr>';
+      })
+      .finally(function() {
+        if (seq !== requestSeq) return;
+        loading.classList.add('hidden'); loading.classList.remove('inline-flex');
+      });
+  }
+
+  document.getElementById('la-client').addEventListener('change', refresh);
+  document.getElementById('la-market').addEventListener('change', refresh);
+  document.getElementById('bf-software').addEventListener('change', refresh);
+  document.querySelectorAll('.la-kpi').forEach(function(card) {
+    card.addEventListener('click', function() {
+      var mode = card.dataset.kpi;
+      kpiMode = (kpiMode === mode) ? 'all' : mode; // click again to deselect
+      renderTable(); highlightKpi();
+    });
+  });
+  document.getElementById('la-table-reset').addEventListener('click', function() {
+    kpiMode = 'all'; renderTable(); highlightKpi();
+  });
+
+  renderAll();
+})();
+</script>

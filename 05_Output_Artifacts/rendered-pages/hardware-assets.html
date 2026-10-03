@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{ darkMode: document.documentElement.classList.contains('dark') }" :class="{ 'dark': darkMode, 'light': !darkMode }">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HAMS Enterprise | Enterprise IT Operations</title>
+<meta name="theme-color" content="#4f46e5">
+<meta name="csrf-token" content="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+<link rel="manifest" href="/manifest.json">
+<script>
+(function() {
+  var theme = localStorage.getItem('hams-theme') || 'dark';
+  document.documentElement.classList.add(theme === 'light' ? 'light' : 'dark');
+})();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: {
+    colors: { hams: { bg: '#0a0a0b', card: '#141417', border: '#27272a', primary: '#3b82f6', accent: '#6366f1' } },
+    fontFamily: { sans: ['Inter', 'sans-serif'], heading: ['Outfit', 'sans-serif'] }
+  }}
+};
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root { --hams-bg: #0a0a0b; --hams-card: #141417; --hams-border: rgba(255,255,255,.05); --hams-text: #e2e8f0; --hams-text-muted: #94a3b8; }
+.light { --hams-bg: #f8fafc; --hams-card: #ffffff; --hams-border: rgba(15,23,42,.08); --hams-text: #0f172a; --hams-text-muted: #64748b; }
+body { background: var(--hams-bg); color: var(--hams-text); font-family: 'Inter', sans-serif; }
+h1,h2,h3,.font-heading { font-family: 'Outfit', sans-serif; }
+.glass { background: var(--hams-card); backdrop-filter: blur(20px); border-bottom: 1px solid var(--hams-border); }
+.table-responsive { overflow-x: auto; border-radius: 1.5rem; scrollbar-width: none; }
+.table-responsive::-webkit-scrollbar { display: none; }
+[x-cloak] { display: none !important; }
+.light .bg-hams-bg { background-color: #f8fafc !important; }
+.light .bg-hams-card { background-color: #ffffff !important; }
+.light .text-white { color: #0f172a !important; }
+.light .text-slate-200 { color: #1e293b !important; }
+.light .text-slate-300 { color: #334155 !important; }
+.light .text-slate-400 { color: #64748b !important; }
+.light .text-slate-500 { color: #64748b !important; }
+.light .border-white\/5 { border-color: rgba(15,23,42,.08) !important; }
+.light .bg-white\/5 { background-color: rgba(15,23,42,.04) !important; }
+.light .divide-white\/5 > * { border-color: rgba(15,23,42,.06) !important; }
+.light input, .light select, .light textarea { color-scheme: light; }
+.dark input, .dark select, .dark textarea { color-scheme: dark; }
+input, select, textarea { background: var(--hams-bg); border: 1px solid var(--hams-border); color: var(--hams-text); }
+</style>
+</head>
+<body class="bg-hams-bg text-slate-200 antialiased overflow-x-hidden"
+      x-data="{ sidebarOpen: window.innerWidth >= 1024, isMobile: window.innerWidth < 1024 }"
+      @resize.window="isMobile = window.innerWidth < 1024; if (!isMobile) sidebarOpen = true">
+
+<!-- Command palette -->
+<div x-data="{ open: false, query: '' }" @keydown.window.ctrl.k.prevent="open = true; $nextTick(() => $refs.searchInput && $refs.searchInput.focus())"
+     @open-command-palette.window="open = true; $nextTick(() => $refs.searchInput && $refs.searchInput.focus())"
+     @keydown.escape.window="open = false" x-cloak>
+  <div x-show="open" class="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="open = false"></div>
+    <div class="relative w-full max-w-xl bg-hams-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+      <input x-ref="searchInput" x-model="query" type="text" placeholder="Search assets, users, actions..."
+             class="w-full px-5 py-4 bg-transparent border-0 border-b border-white/5 outline-none text-sm">
+      <div class="p-3 text-xs text-slate-500 uppercase tracking-wider px-5">Navigation &amp; Quick Actions</div>
+      <div class="pb-3 max-h-80 overflow-y-auto">
+        
+        
+        <a href="http://localhost:3000/assets/create" x-show="!query || 'add new asset create hardware'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center"><i data-lucide="plus" class="w-4 h-4"></i></span>
+          Add New Asset
+        </a>
+        
+        <a href="http://localhost:3000/assets" x-show="!query || 'assets catalog hardware list'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+          Assets Catalog
+        </a>
+        
+        <a href="http://localhost:3000/inventory/licenses" x-show="!query || 'license software seats'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-pink-500/15 text-pink-400 flex items-center justify-center"><i data-lucide="key-round" class="w-4 h-4"></i></span>
+          License Manager
+        </a>
+        
+        <a href="http://localhost:3000/inventory" x-show="!query || 'stock inventory consumables accessories'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center"><i data-lucide="package" class="w-4 h-4"></i></span>
+          Stock &amp; Inventory
+        </a>
+        
+        <a href="http://localhost:3000/maintenance" x-show="!query || 'operations maintenance repair'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-orange-500/15 text-orange-400 flex items-center justify-center"><i data-lucide="wrench" class="w-4 h-4"></i></span>
+          Operations &amp; Maintenance
+        </a>
+        
+        <a href="http://localhost:3000/archive" x-show="!query || 'archive deleted restore'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center"><i data-lucide="archive" class="w-4 h-4"></i></span>
+          Archive &amp; Soft-Deletes
+        </a>
+        
+        <a href="http://localhost:3000/settings/monitoring" x-show="!query || 'audit monitoring health'.includes(query.toLowerCase())"
+           class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 text-sm">
+          <span class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center"><i data-lucide="activity" class="w-4 h-4"></i></span>
+          Audit &amp; Monitoring
+        </a>
+        
+      </div>
+      <div class="px-5 py-2 border-t border-white/5 text-[10px] text-slate-500 flex justify-between">
+        <span>Enterprise Search Engine v1.0</span><span>&uarr;&darr; to navigate &middot; ENTER to select</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flex h-screen overflow-hidden">
+  <!-- Mobile backdrop -->
+  <div x-show="isMobile && sidebarOpen" class="fixed inset-0 bg-black/50 z-30 lg:hidden" @click="sidebarOpen = false" x-cloak></div>
+
+  <!-- Sidebar -->
+  <aside class="fixed lg:static inset-y-0 left-0 z-40 w-72 bg-hams-card border-r border-white/5 flex flex-col transition-transform duration-200"
+         :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:-translate-x-full lg:hidden'" x-show="sidebarOpen || !isMobile" x-cloak>
+    <div class="h-20 md:h-24 flex items-center gap-3 px-6 border-b border-white/5 shrink-0">
+      
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg font-heading">H</div>
+      
+      <div class="min-w-0">
+        <div class="font-heading font-semibold text-white truncate">HAMS Enterprise</div>
+        <div class="text-[11px] text-slate-500 truncate">Enterprise Asset Management</div>
+      </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-4 py-5 space-y-6 text-sm">
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Core Systems</div>
+        <a href="http://localhost:3000" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="layout-dashboard" class="w-4 h-4"></i>Dashboard</a>
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Administration</div>
+        
+        <a href="http://localhost:3000/users" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="users" class="w-4 h-4"></i>Enterprise Directory</a>
+        <a href="http://localhost:3000/users/ldap" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="network" class="w-4 h-4"></i>LDAP Directory &amp; Sync</a>
+        
+        
+        <a href="http://localhost:3000/settings/roles" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="shield-check" class="w-4 h-4"></i>Roles &amp; Permissions</a>
+        
+        
+        <a href="http://localhost:3000/settings/identity" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="fingerprint" class="w-4 h-4"></i>Identity &amp; SSO</a>
+        <a href="http://localhost:3000/settings/security" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="shield" class="w-4 h-4"></i>Security Center</a>
+        <a href="http://localhost:3000/agents" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="radio" class="w-4 h-4"></i>Endpoint Agents</a>
+        <a href="http://localhost:3000/settings/branding" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="settings" class="w-4 h-4"></i>All Settings</a>
+        
+      </div>
+      
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Asset Management</div>
+        
+        <a href="http://localhost:3000/new-joinees" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="user-check" class="w-4 h-4"></i>New Joinees</a>
+        <a href="http://localhost:3000/assets" class="flex items-center gap-3 px-3 py-2 rounded-xl bg-blue-600/10 text-blue-500 font-medium border-l-2 border-blue-500"><i data-lucide="laptop" class="w-4 h-4"></i>Hardware</a>
+        <a href="http://localhost:3000/procurement" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="receipt" class="w-4 h-4"></i>Procurement</a>
+        <a href="http://localhost:3000/assets/scan" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="qr-code" class="w-4 h-4"></i>Mobile Scanner</a>
+        <a href="http://localhost:3000/portal/scan" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="scan-barcode" class="w-4 h-4"></i>Barcode Scanner</a>
+        
+        <a href="http://localhost:3000/maintenance" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="wrench" class="w-4 h-4"></i>Maintenance</a>
+        
+        <a href="http://localhost:3000/inventory/accessories" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="mouse" class="w-4 h-4"></i>Accessories</a>
+        <a href="http://localhost:3000/inventory/components" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="cpu" class="w-4 h-4"></i>Components</a>
+        
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">License Management</div>
+        <a href="http://localhost:3000/inventory/licenses" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Licenses</a>
+        <a href="http://localhost:3000/software" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="app-window" class="w-4 h-4"></i>Software</a>
+        <a href="http://localhost:3000/license-allocation" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="gauge" class="w-4 h-4"></i>License Allocation &amp; Utilization</a>
+        
+        <a href="http://localhost:3000/licenses/setup" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i>License Setup</a>
+        
+      </div>
+      
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Inventory Module</div>
+        <a href="http://localhost:3000/inventory/consumables" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="package-minus" class="w-4 h-4"></i>Consumables</a>
+        <a href="http://localhost:3000/inventory-setup" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="boxes" class="w-4 h-4"></i>Inventory Setup</a>
+        <a href="http://localhost:3000/stock-movements" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="arrow-left-right" class="w-4 h-4"></i>Stock Movements</a>
+      </div>
+      
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Analytics</div>
+        
+        <a href="http://localhost:3000/reports" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="file-bar-chart" class="w-4 h-4"></i>Reports</a>
+        
+        
+        <a href="http://localhost:3000/import" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="file-up" class="w-4 h-4"></i>Import Center</a>
+        
+        
+        <a href="http://localhost:3000/requests" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="clipboard-list" class="w-4 h-4"></i>Requests</a>
+        
+      </div>
+      <div>
+        <div class="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">My Workspace</div>
+        <a href="http://localhost:3000/portal/my-assets" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>My Assets</a>
+        <a href="http://localhost:3000/portal/requests" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"><i data-lucide="message-square" class="w-4 h-4"></i>My Requests</a>
+      </div>
+      
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <header class="h-20 md:h-24 glass flex items-center gap-4 px-4 md:px-8 shrink-0 z-20">
+      <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="menu" class="w-5 h-5"></i></button>
+      <button @click="$dispatch('open-command-palette')"
+              class="flex-1 max-w-md flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/5 text-slate-500 text-sm hover:border-white/10">
+        <i data-lucide="search" class="w-4 h-4"></i>
+        <span class="hidden md:inline">Search everything&hellip;</span><span class="md:hidden">Search&hellip;</span>
+        <kbd class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-white/10 hidden md:inline">Ctrl + K</kbd>
+      </button>
+      <div class="ml-auto flex items-center gap-2">
+        
+        <button id="hams-ai-btn" title="HAMS AI Assistant" class="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-violet-600/20 to-blue-600/20 border border-violet-500/30 hover:border-violet-400/60 text-violet-300 text-sm font-medium">
+          <i data-lucide="sparkles" class="w-4 h-4"></i><span class="hidden md:inline">Ask AI</span>
+        </button>
+        
+        
+        <a href="http://localhost:3000/settings/branding" class="p-2.5 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="settings" class="w-5 h-5"></i></a>
+        
+        <button @click="darkMode = !darkMode; localStorage.setItem('hams-theme', darkMode ? 'dark' : 'light')" class="p-2.5 rounded-xl hover:bg-white/5 text-slate-400">
+          <i data-lucide="moon" class="w-5 h-5" x-show="darkMode"></i>
+          <i data-lucide="sun" class="w-5 h-5" x-show="!darkMode" x-cloak></i>
+        </button>
+        
+        <div x-data="{ createNewOpen: false }" class="relative" @click.outside="createNewOpen = false">
+          <button @click="createNewOpen = !createNewOpen" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">
+            <i data-lucide="plus" class="w-4 h-4"></i><span class="hidden md:inline">Create New</span>
+          </button>
+          <div x-show="createNewOpen" x-cloak x-transition class="absolute right-0 mt-2 w-56 bg-hams-card border border-white/10 rounded-2xl shadow-xl py-2 z-[150]">
+            <a href="http://localhost:3000/assets/create" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>Hardware</a>
+            <a href="http://localhost:3000/inventory/licenses" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Licenses</a>
+            
+            <a href="http://localhost:3000/inventory/accessories" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="mouse" class="w-4 h-4"></i>Accessories</a>
+            <a href="http://localhost:3000/inventory/consumables" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="package-minus" class="w-4 h-4"></i>Consumables</a>
+            <a href="http://localhost:3000/inventory/components" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="cpu" class="w-4 h-4"></i>Components</a>
+            
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/users" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="users" class="w-4 h-4"></i>Users</a>
+            
+          </div>
+        </div>
+        
+        
+        <div x-data="{ profileOpen: false }" class="relative" @click.outside="profileOpen = false">
+          <button @click="profileOpen = !profileOpen" class="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-white/5">
+            <img src="https://ui-avatars.com/api/?name=Administrator&amp;background=3b82f6&amp;color=fff"
+                 class="w-9 h-9 rounded-xl object-cover" alt="avatar">
+            <span class="hidden md:block text-sm font-medium text-white max-w-[120px] truncate">Administrator</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 transition-transform" :class="profileOpen && 'rotate-180'"></i>
+          </button>
+          <div x-show="profileOpen" x-cloak x-transition class="absolute right-0 mt-2 w-60 bg-hams-card border border-white/10 rounded-2xl shadow-xl py-2 z-[150]">
+            <a href="http://localhost:3000/portal/my-assets" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="laptop" class="w-4 h-4"></i>My Assets</a>
+            <a href="http://localhost:3000/portal/requests" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="message-square" class="w-4 h-4"></i>My Requests</a>
+            
+            <a href="http://localhost:3000/requests" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="clipboard-list" class="w-4 h-4"></i>Requests</a>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/profile" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="user" class="w-4 h-4"></i>Edit Profile</a>
+            <a href="http://localhost:3000/profile" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key" class="w-4 h-4"></i>Change Password</a>
+            <button @click="darkMode = !darkMode; localStorage.setItem('hams-theme', darkMode ? 'dark' : 'light')" class="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5">
+              <i data-lucide="moon" class="w-4 h-4"></i>Dark Mode <span class="ml-auto text-xs text-slate-500" x-text="darkMode ? 'ON' : 'OFF'"></span>
+            </button>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/settings/api-tokens" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="key-round" class="w-4 h-4"></i>Manage API keys</a>
+            <a href="http://localhost:3000/logs" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="scroll-text" class="w-4 h-4"></i>Log Viewer</a>
+            
+            <div class="my-1 border-t border-white/5"></div>
+            <a href="http://localhost:3000/logout" class="flex items-center gap-3 px-4 py-2 text-sm text-rose-400 hover:bg-rose-500/10"><i data-lucide="log-out" class="w-4 h-4"></i>Logout</a>
+          </div>
+        </div>
+        
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto px-4 md:px-8 py-6 md:py-8">
+      
+      <div x-data="{ selected: [], selectAll: false }"
+     x-effect="if (selectAll) { selected = ["447","445","444","443","442","441","440","439","438","437","436","435","434","433","432"] } ">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+  <div>
+    <h1 class="font-heading text-2xl md:text-3xl font-bold text-white">Hardware Assets</h1>
+    <p class="text-sm text-slate-500 mt-1">Full lifecycle registry of enterprise hardware</p>
+  </div>
+  <a href="http://localhost:3000/assets/create" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">
+    <i data-lucide="plus" class="w-4 h-4"></i>Add Asset
+  </a>
+</div>
+
+<!-- Bulk action bar -->
+<div x-show="selected.length > 0" x-cloak class="mb-4 flex flex-wrap items-center gap-3 bg-hams-card border border-blue-500/20 rounded-2xl px-5 py-3">
+  <span class="text-sm text-blue-400 font-medium" x-text="selected.length + ' asset(s) selected'"></span>
+  <form method="GET" action="http://localhost:3000/assets/labels" class="flex items-center">
+    <template x-for="id in selected" :key="'l' + id"><input type="hidden" name="ids[]" :value="id"></template>
+    <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs"><i data-lucide="printer" class="w-3.5 h-3.5"></i>Labels</button>
+  </form>
+  <form method="POST" action="http://localhost:3000/assets/bulk-update" class="flex items-center gap-2">
+    <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+    <template x-for="id in selected" :key="'u' + id"><input type="hidden" name="ids[]" :value="id"></template>
+    <select name="status_label_id" class="px-3 py-1.5 rounded-lg text-xs bg-hams-bg border border-white/10">
+      <option value="">Update Status&hellip;</option>
+      <option value="7">Broken</option><option value="8">Damaged</option><option value="3">Deployed</option><option value="11">Disposed</option><option value="6">In Repair</option><option value="2">In Stock</option><option value="9">Lost</option><option value="4">Pending</option><option value="1">Ready to Deploy</option><option value="5">Reserved</option><option value="10">Retired</option>
+    </select>
+    <button class="px-3 py-1.5 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 text-xs">Apply</button>
+  </form>
+  <form method="POST" action="http://localhost:3000/assets/bulk-delete" data-confirm="Delete the selected assets?">
+    <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+    <template x-for="id in selected" :key="'d' + id"><input type="hidden" name="ids[]" :value="id"></template>
+    <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Delete</button>
+  </form>
+</div>
+
+<!-- Search / filters -->
+<div class="bg-hams-card border border-white/5 rounded-3xl mb-6" x-data="{ filtersOpen: false }">
+  <div class="flex flex-wrap items-center gap-3 p-4">
+    <form method="GET" action="http://localhost:3000/assets" class="flex-1 min-w-[200px] relative">
+      <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+      <input type="text" name="search" value="" placeholder="Search name, tag, or serial..."
+             class="w-full pl-11 pr-10 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm outline-none focus:border-blue-500">
+      
+    </form>
+    <button @click="filtersOpen = !filtersOpen" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-300">
+      <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>Filters
+    </button>
+    <div class="flex items-center gap-2 text-xs text-slate-500"><i data-lucide="database" class="w-3.5 h-3.5"></i>443 assets in inventory</div>
+  </div>
+  <div x-show="filtersOpen" x-cloak class="px-4 pb-4">
+    <form method="GET" action="http://localhost:3000/assets" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <input type="hidden" name="search" value="">
+      
+      
+      <select name="category_id" onchange="this.form.submit()" class="px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">All Categories</option>
+        <option value="7" >Accessory</option><option value="21" >Batteries</option><option value="19" >Cables</option><option value="9" >Component</option><option value="8" >Consumable</option><option value="2" >Desktop</option><option value="12" >Desktop Monitor</option><option value="15" >Dock</option><option value="11" >Headphone</option><option value="1" >Laptop</option><option value="10" >License</option><option value="6" >Mobile Device</option><option value="3" >Monitor</option><option value="5" >Network Device</option><option value="13" >RAM</option><option value="4" >Server</option><option value="16" >Spare</option><option value="14" >SSD</option><option value="18" >Supplies</option><option value="20" >Toner</option>
+      </select>
+      
+      <select name="status_label_id" onchange="this.form.submit()" class="px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">All Statuses</option>
+        <option value="7" >Broken</option><option value="8" >Damaged</option><option value="3" >Deployed</option><option value="11" >Disposed</option><option value="6" >In Repair</option><option value="2" >In Stock</option><option value="9" >Lost</option><option value="4" >Pending</option><option value="1" >Ready to Deploy</option><option value="5" >Reserved</option><option value="10" >Retired</option>
+      </select>
+      
+      <select name="location_id" onchange="this.form.submit()" class="px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">All Locations</option>
+        <option value="12" >Central IT Store</option><option value="6" >CitiusTech Bangalore SEZ1</option><option value="8" >CitiusTech Canada</option><option value="7" >CitiusTech Chennai SEZ</option><option value="9" >CitiusTech Gurugram</option><option value="1" >CitiusTech Hyderabad</option><option value="10" >CitiusTech Noida</option><option value="3" >CitiusTech SEZ3</option><option value="2" >CitiusTech US</option><option value="4" >CT Powai</option><option value="5" >CT Pune Qubix SEZ1</option>
+      </select>
+      
+      <select name="manufacturer_id" onchange="this.form.submit()" class="px-3 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+        <option value="">All Manufacturers</option>
+        <option value="16" >Anker</option><option value="1" >Apple</option><option value="17" >Brother</option><option value="9" >Corsair</option><option value="8" >Crucial</option><option value="2" >Dell</option><option value="18" >Duracell</option><option value="3" >EPOS</option><option value="12" >HP</option><option value="7" >Kingston</option><option value="4" >Lenovo</option><option value="14" >LG</option><option value="13" >Logitech</option><option value="19" >Panasonic</option><option value="10" >Samsung</option><option value="5" >Sennheiser</option><option value="15" >UGREEN</option><option value="11" >Western Digital</option><option value="6" >Zebronics</option>
+      </select>
+      
+      <a href="http://localhost:3000/assets" class="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-slate-400">
+        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>Reset All Filters
+      </a>
+    </form>
+  </div>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden">
+  <div class="table-responsive">
+    <table class="w-full min-w-[1000px] text-sm">
+      <thead>
+        <tr class="text-left text-xs text-slate-500 uppercase tracking-wider border-b border-white/5">
+          <th class="px-6 py-4 w-10"><input type="checkbox" x-model="selectAll" class="rounded"></th>
+          <th class="px-6 py-4">Asset</th>
+          <th class="px-6 py-4">Category</th>
+          <th class="px-6 py-4">Status</th>
+          <th class="px-6 py-4">Location</th>
+          <th class="px-6 py-4">Assigned To</th>
+          <th class="px-6 py-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="447" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/447" class="font-medium text-white hover:text-blue-400 truncate block">CM1CAI178</a>
+                <div class="text-xs text-slate-500 font-mono">HAMS-000446 · VMware-42 0f 9f 55 5c fb ba 09-1a da b3 bf e2 14 a4 19</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Desktop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              available
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">—</td>
+          <td class="px-6 py-4"><span class="italic text-slate-600">Unassigned</span></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/447" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/447/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=447" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/447" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/447/delete" data-confirm="Delete asset CM1CAI178?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="445" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/445" class="font-medium text-white hover:text-blue-400 truncate block">Swara Kiran Rane</a>
+                <div class="text-xs text-slate-500 font-mono">CTAAD927QR24 · 927QR24</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              Deployed
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech SEZ3</td>
+          <td class="px-6 py-4">Swara Kiran Rane</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/445" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/445/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=445" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/445" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/445/delete" data-confirm="Delete asset Swara Kiran Rane?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="444" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/444" class="font-medium text-white hover:text-blue-400 truncate block">Deepti Devendra Bare</a>
+                <div class="text-xs text-slate-500 font-mono">CTAADPG02MVVW · PG02MVVW</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              Deployed
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech SEZ3</td>
+          <td class="px-6 py-4">Deepti Devendra Bare</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/444" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/444/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=444" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/444" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/444/delete" data-confirm="Delete asset Deepti Devendra Bare?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="443" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/443" class="font-medium text-white hover:text-blue-400 truncate block">Bhavika Pradeep Shirodkar</a>
+                <div class="text-xs text-slate-500 font-mono">CTAADPG038PLL · PG038PLL</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #22c55e22; color: #22c55e;">
+              In Stock
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech SEZ3</td>
+          <td class="px-6 py-4"><span class="italic text-slate-600">Unassigned</span></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/443" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/443/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=443" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/443" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/443/delete" data-confirm="Delete asset Bhavika Pradeep Shirodkar?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="442" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/442" class="font-medium text-white hover:text-blue-400 truncate block">Navyanth Kumar Bhupathi</a>
+                <div class="text-xs text-slate-500 font-mono">CTAADPW03H8JT · PW03H8JT</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              Deployed
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech Hyderabad</td>
+          <td class="px-6 py-4">Navyanth Kumar Bhupathi</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/442" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/442/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=442" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/442" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/442/delete" data-confirm="Delete asset Navyanth Kumar Bhupathi?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="441" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/441" class="font-medium text-white hover:text-blue-400 truncate block">Alamelumangai Gopalsamy</a>
+                <div class="text-xs text-slate-500 font-mono">CTAADPW03H8LE · PW03H8LE</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              Deployed
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech US</td>
+          <td class="px-6 py-4">Alamelumangai Gopalsamy</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/441" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/441/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=441" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/441" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/441/delete" data-confirm="Delete asset Alamelumangai Gopalsamy?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="440" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/440" class="font-medium text-white hover:text-blue-400 truncate block">Sudalai  Pitchai</a>
+                <div class="text-xs text-slate-500 font-mono">CTAADPW03H8M2 · PW03H8M2</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              Deployed
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech Chennai SEZ</td>
+          <td class="px-6 py-4">Sudalai  Pitchai</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/440" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/440/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=440" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/440" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/440/delete" data-confirm="Delete asset Sudalai  Pitchai?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="439" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/439" class="font-medium text-white hover:text-blue-400 truncate block">Sandeep M</a>
+                <div class="text-xs text-slate-500 font-mono">CTAADPW03H8P5 · PW03H8P5</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              Deployed
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech US</td>
+          <td class="px-6 py-4">Sandeep M</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/439" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/439/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=439" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/439" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/439/delete" data-confirm="Delete asset Sandeep M?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="438" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/438" class="font-medium text-white hover:text-blue-400 truncate block">Lenovo-Thinkpad-L14 GEN3 Type 21C1</a>
+                <div class="text-xs text-slate-500 font-mono">Chennai wilco IT stock 09/04/2026 · PW03H8S6</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #22c55e22; color: #22c55e;">
+              In Stock
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech Hyderabad</td>
+          <td class="px-6 py-4"><span class="italic text-slate-600">Unassigned</span></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/438" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/438/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=438" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/438" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/438/delete" data-confirm="Delete asset Lenovo-Thinkpad-L14 GEN3 Type 21C1?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="437" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/437" class="font-medium text-white hover:text-blue-400 truncate block">Avinash Eppalapally</a>
+                <div class="text-xs text-slate-500 font-mono">CTAADPW03HG7L · PW03HG7L</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              Deployed
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech Hyderabad</td>
+          <td class="px-6 py-4">Avinash Eppalapally</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/437" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/437/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=437" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/437" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/437/delete" data-confirm="Delete asset Avinash Eppalapally?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="436" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/436" class="font-medium text-white hover:text-blue-400 truncate block">Chaitanya Maruthi</a>
+                <div class="text-xs text-slate-500 font-mono">CTAADPW03HG7M · PW03HG7M</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              Deployed
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech Hyderabad</td>
+          <td class="px-6 py-4">Chaitanya Maruthi</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/436" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/436/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=436" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/436" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/436/delete" data-confirm="Delete asset Chaitanya Maruthi?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="435" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/435" class="font-medium text-white hover:text-blue-400 truncate block">Lenovo-Thinkpad-L14 GEN3 Type 21C1</a>
+                <div class="text-xs text-slate-500 font-mono">BL-ITSTOCK ON 04/08/2023 · PW03HG7R</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #22c55e22; color: #22c55e;">
+              In Stock
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech SEZ3</td>
+          <td class="px-6 py-4"><span class="italic text-slate-600">Unassigned</span></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/435" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/435/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=435" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/435" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/435/delete" data-confirm="Delete asset Lenovo-Thinkpad-L14 GEN3 Type 21C1?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="434" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/434" class="font-medium text-white hover:text-blue-400 truncate block">Rishabh Rajesh Dabhade</a>
+                <div class="text-xs text-slate-500 font-mono">CTAADPW03HG7T · PW03HG7T</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              Deployed
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech SEZ3</td>
+          <td class="px-6 py-4">Rishabh Rajesh Dabhade</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/434" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/434/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=434" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/434" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/434/delete" data-confirm="Delete asset Rishabh Rajesh Dabhade?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="433" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/433" class="font-medium text-white hover:text-blue-400 truncate block">Lenovo-Thinkpad-L14 GEN3 Type 21C1</a>
+                <div class="text-xs text-slate-500 font-mono">MS-ITSTOCK ON 15/04/2024 · PW03HG8Y</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #22c55e22; color: #22c55e;">
+              In Stock
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech SEZ3</td>
+          <td class="px-6 py-4"><span class="italic text-slate-600">Unassigned</span></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/433" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/433/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=433" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/433" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/433/delete" data-confirm="Delete asset Lenovo-Thinkpad-L14 GEN3 Type 21C1?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        <tr class="hover:bg-white/[.02]">
+          <td class="px-6 py-4"><input type="checkbox" value="432" x-model="selected" class="rounded"></td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="laptop" class="w-4 h-4"></i></span>
+              <div class="min-w-0">
+                <a href="http://localhost:3000/assets/432" class="font-medium text-white hover:text-blue-400 truncate block">Bhargavkumar Pottella</a>
+                <div class="text-xs text-slate-500 font-mono">CTAADPW03HG95 · PW03HG95</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs">Laptop</span></td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style="background: #3b82f622; color: #3b82f6;">
+              Deployed
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-400">CitiusTech US</td>
+          <td class="px-6 py-4">Bhargavkumar Pottella</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-1">
+              <a href="http://localhost:3000/assets/432" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/432/edit" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/assets/labels?ids[]=432" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Print label"><i data-lucide="qr-code" class="w-4 h-4"></i></a>
+              <a href="http://localhost:3000/timeline/assets/432" class="p-2 rounded-lg hover:bg-white/5 text-slate-400" title="Timeline"><i data-lucide="activity" class="w-4 h-4"></i></a>
+              <form method="POST" action="http://localhost:3000/assets/432/delete" data-confirm="Delete asset Bhargavkumar Pottella?">
+                <input type="hidden" name="_csrf" value="a095b8ea601eb54deb64eed504cb2b9923c20d09fd91d7c5bcdea185779e9f9b">
+                <button class="p-2 rounded-lg hover:bg-rose-500/10 text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        
+        
+      </tbody>
+    </table>
+  </div>
+  
+<div class="flex items-center justify-between px-6 py-4 border-t border-white/5 text-sm">
+  <div class="text-slate-500">Showing 1&ndash;15 of 443</div>
+  <div class="flex items-center gap-1">
+    
+    
+    
+      <a href="http://localhost:3000/assets?page=1"
+         class="w-9 h-9 flex items-center justify-center rounded-lg bg-blue-600 text-white">1</a>
+    
+      <a href="http://localhost:3000/assets?page=2"
+         class="w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-white/5">2</a>
+    
+      <a href="http://localhost:3000/assets?page=3"
+         class="w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-white/5">3</a>
+    
+  </div>
+</div>
+
+
+</div>
+</div>
+
+    </div>
+  </main>
+</div>
+
+
+<!-- HAMS AI Assistant drawer -->
+<div id="hams-ai-backdrop" class="fixed inset-0 z-[170] hidden bg-black/50 backdrop-blur-sm"></div>
+<div id="hams-ai-panel" class="fixed inset-y-0 right-0 z-[180] w-full sm:w-[440px] hidden flex-col bg-hams-card border-l border-white/10 shadow-2xl">
+  <div class="flex items-center gap-3 px-5 py-4 border-b border-white/5 shrink-0">
+    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center text-white"><i data-lucide="sparkles" class="w-4 h-4"></i></span>
+    <div class="min-w-0">
+      <div class="font-heading font-semibold text-white text-sm">HAMS AI Assistant</div>
+      <div class="text-[11px] text-slate-500">Answers from your live data — markets, clients, software, spend &amp; more</div>
+    </div>
+    <button id="hams-ai-close" class="ml-auto p-2 rounded-lg hover:bg-white/5 text-slate-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+  </div>
+
+  <div id="hams-ai-messages" class="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-sm"></div>
+
+  <div id="hams-ai-suggestions" class="px-5 pb-2 shrink-0 flex flex-wrap gap-2">
+    <button data-ai-suggest="How many software products do we have for Athena in HMT2?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Software for Athena in HMT2</button>
+    <button data-ai-suggest="Which market has the highest number of licenses?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Top market by licenses</button>
+    <button data-ai-suggest="What are our estimated savings?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Estimated savings</button>
+    <button data-ai-suggest="What renews in the next 90 days?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">Upcoming renewals</button>
+    <button data-ai-suggest="What can you do?" class="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300">What can you do?</button>
+  </div>
+
+  <div class="px-5 py-4 border-t border-white/5 shrink-0">
+    <form id="hams-ai-form" class="flex items-center gap-2">
+      <input id="hams-ai-input" type="text" maxlength="500" placeholder="Ask about markets, clients, software, spend…" autocomplete="off"
+             class="flex-1 px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm text-slate-200 focus:border-violet-500/60 outline-none">
+      <button type="submit" id="hams-ai-send" class="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-40"><i data-lucide="send" class="w-4 h-4"></i></button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  var AI_URL = "http://localhost:3000/assistant/query";
+  var panel = document.getElementById('hams-ai-panel');
+  var backdrop = document.getElementById('hams-ai-backdrop');
+  var messages = document.getElementById('hams-ai-messages');
+  var suggestions = document.getElementById('hams-ai-suggestions');
+  var input = document.getElementById('hams-ai-input');
+  var sendBtn = document.getElementById('hams-ai-send');
+  var esc = function(s) { return String(s).replace(/[&<>"]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+  var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+  function openPanel() {
+    panel.classList.remove('hidden'); panel.classList.add('flex');
+    backdrop.classList.remove('hidden');
+    if (!messages.children.length) {
+      addBubble('bot', '<p>Hi! I answer questions straight from your HAMS data. Try one of the suggestions below, or ask anything about markets, clients, software, licenses, spending or renewals.</p>');
+    }
+    setTimeout(function() { input.focus(); }, 50);
+  }
+  function closePanel() {
+    panel.classList.add('hidden'); panel.classList.remove('flex');
+    backdrop.classList.add('hidden');
+  }
+  document.getElementById('hams-ai-btn').addEventListener('click', openPanel);
+  document.getElementById('hams-ai-close').addEventListener('click', closePanel);
+  backdrop.addEventListener('click', closePanel);
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closePanel(); });
+
+  function addBubble(who, html) {
+    var wrap = document.createElement('div');
+    if (who === 'user') {
+      wrap.className = 'flex justify-end';
+      wrap.innerHTML = '<div class="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-br-sm bg-blue-600 text-white">' + html + '</div>';
+    } else {
+      wrap.className = 'flex justify-start';
+      wrap.innerHTML = '<div class="max-w-[95%] px-4 py-3 rounded-2xl rounded-bl-sm bg-white/5 border border-white/5 text-slate-200 space-y-3 overflow-hidden">' + html + '</div>';
+    }
+    messages.appendChild(wrap);
+    messages.scrollTop = messages.scrollHeight;
+    return wrap;
+  }
+
+  function renderAnswer(a) {
+    var html = '';
+    if (a.summary) html += '<p class="leading-relaxed">' + esc(a.summary) + '</p>';
+    if (a.metrics && a.metrics.length) {
+      html += '<div class="grid grid-cols-2 gap-2">' + a.metrics.map(function(m) {
+        return '<div class="px-3 py-2 rounded-xl bg-white/5 border border-white/5"><div class="text-[10px] uppercase tracking-wider text-slate-500">' + esc(m.label) + '</div><div class="text-sm font-semibold text-white">' + esc(m.value) + '</div></div>';
+      }).join('') + '</div>';
+    }
+    if (a.table && a.table.rows && a.table.rows.length) {
+      html += '<div class="overflow-x-auto rounded-xl border border-white/10"><table class="w-full text-xs"><thead><tr class="text-left text-slate-500 uppercase bg-white/5">' +
+        a.table.columns.map(function(c) { return '<th class="px-3 py-2 whitespace-nowrap">' + esc(c) + '</th>'; }).join('') +
+        '</tr></thead><tbody class="divide-y divide-white/5">' +
+        a.table.rows.slice(0, 15).map(function(r) {
+          return '<tr>' + r.map(function(c) { return '<td class="px-3 py-2 whitespace-nowrap text-slate-300">' + esc(c) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>';
+      if (a.table.rows.length > 15) html += '<p class="text-[11px] text-slate-500">Showing 15 of ' + a.table.rows.length + ' rows.</p>';
+    }
+    if (a.insights && a.insights.length) {
+      html += '<div class="space-y-1">' + a.insights.map(function(i) {
+        return '<p class="text-[12px] text-slate-400 flex gap-1.5"><span class="text-violet-400">◆</span><span>' + esc(i) + '</span></p>';
+      }).join('') + '</div>';
+    }
+    if (a.recommendations && a.recommendations.length) {
+      html += '<div class="space-y-1">' + a.recommendations.map(function(r) {
+        return '<p class="text-[12px] text-emerald-300/90 flex gap-1.5"><span>→</span><span>' + esc(r) + '</span></p>';
+      }).join('') + '</div>';
+    }
+    return html || '<p>I could not build an answer for that.</p>';
+  }
+
+  function send(question) {
+    question = (question || '').trim();
+    if (!question) return;
+    suggestions.classList.add('hidden');
+    addBubble('user', esc(question));
+    input.value = '';
+    sendBtn.disabled = true;
+    var typing = addBubble('bot', '<span class="inline-flex gap-1 items-center text-slate-400"><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce"></span><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style="animation-delay:.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style="animation-delay:.3s"></span></span>');
+    fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _csrf: csrf, question: question })
+    })
+      .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(function(a) { typing.remove(); addBubble('bot', renderAnswer(a)); })
+      .catch(function(err) { typing.remove(); addBubble('bot', '<p class="text-rose-300">Something went wrong (' + esc(err.message) + '). Please try again.</p>'); })
+      .finally(function() { sendBtn.disabled = false; input.focus(); });
+  }
+
+  document.getElementById('hams-ai-form').addEventListener('submit', function(e) { e.preventDefault(); send(input.value); });
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); send(input.value); }
+  });
+  suggestions.addEventListener('click', function(e) {
+    var b = e.target.closest('[data-ai-suggest]');
+    if (b) send(b.dataset.aiSuggest);
+  });
+})();
+</script>
+
+
+<!-- Global confirm modal -->
+<div id="hams-confirm-modal" class="fixed inset-0 z-[200] hidden items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+  <div class="relative bg-hams-card border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-400 flex items-center justify-center"><i data-lucide="triangle-alert" class="w-5 h-5"></i></span>
+      <h3 class="font-heading font-semibold text-white">Confirm Action</h3>
+    </div>
+    <p id="hams-confirm-message" class="text-sm text-slate-400 mb-5"></p>
+    <div class="flex justify-end gap-2">
+      <button data-confirm-cancel class="px-4 py-2 rounded-xl bg-white/5 text-sm text-slate-300 hover:bg-white/10">Cancel</button>
+      <button data-confirm-ok class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-sm text-white font-medium">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('load', function() { if (window.lucide) lucide.createIcons(); });
+document.addEventListener('DOMContentLoaded', function() { if (window.lucide) lucide.createIcons(); });
+
+// Global confirm modal wiring (data-confirm on forms, data-confirm-click on buttons)
+(function() {
+  var modal = document.getElementById('hams-confirm-modal');
+  var msgEl = document.getElementById('hams-confirm-message');
+  var pending = null;
+  function show(message, onOk) {
+    msgEl.textContent = message;
+    pending = onOk;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  function hide() { modal.classList.add('hidden'); modal.classList.remove('flex'); pending = null; }
+  modal.querySelector('[data-confirm-cancel]').addEventListener('click', hide);
+  modal.querySelector('[data-confirm-ok]').addEventListener('click', function() { var fn = pending; hide(); if (fn) fn(); });
+  document.addEventListener('submit', function(e) {
+    var form = e.target.closest('form[data-confirm]');
+    if (form && !form.dataset.confirmed) {
+      e.preventDefault();
+      show(form.dataset.confirm, function() { form.dataset.confirmed = '1'; form.submit(); });
+    }
+  }, true);
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-confirm-click]');
+    if (btn && !btn.dataset.confirmed) {
+      e.preventDefault();
+      show(btn.dataset.confirmClick, function() {
+        btn.dataset.confirmed = '1';
+        if (btn.formAction && btn.form) { btn.form.action = btn.formAction; btn.form.submit(); }
+        else btn.click();
+      });
+    }
+  }, true);
+})();
+
+// Barcode scan helper (BarcodeDetector with prompt fallback)
+document.addEventListener('click', async function(e) {
+  var btn = e.target.closest('[data-barcode-scan]');
+  if (!btn) return;
+  var fieldName = btn.dataset.barcodeScan;
+  var input = document.querySelector('[name="' + fieldName + '"], [data-barcode-target="' + fieldName + '"]');
+  if (!input) return;
+  var code = window.prompt('Scan or enter barcode value:');
+  if (code) { input.value = code; input.dispatchEvent(new Event('input')); }
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(function() {});
+  });
+}
+</script>
+</body>
+</html>

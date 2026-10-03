@@ -1,0 +1,114 @@
+<div class="max-w-lg mx-auto">
+<div class="flex items-center justify-between mb-6">
+  <h1 class="font-heading text-2xl font-bold text-white">Mobile Scanner</h1>
+  <a href="<%= hams_url('/assets') %>" class="p-2 rounded-xl hover:bg-white/5 text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></a>
+</div>
+
+<div id="reader" class="bg-hams-card border border-white/5 rounded-3xl overflow-hidden aspect-square flex items-center justify-center mb-4">
+  <div id="reader-placeholder" class="text-center px-8">
+    <i data-lucide="camera" class="w-10 h-10 mx-auto text-slate-600 mb-3"></i>
+    <p class="text-sm text-slate-500 mb-4">Camera Access Required</p>
+    <button id="start-scan" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Start Scanning</button>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 gap-3 mb-4">
+  <div class="bg-hams-card border border-white/5 rounded-2xl p-4 flex items-center gap-3">
+    <i data-lucide="zap" class="w-5 h-5 text-amber-400"></i><span class="text-sm text-slate-400">Flashlight</span>
+  </div>
+  <div class="bg-hams-card border border-white/5 rounded-2xl p-4 flex items-center gap-3">
+    <i data-lucide="info" class="w-5 h-5 text-blue-400"></i><span id="scan-status" class="text-sm text-slate-400">Idle</span>
+  </div>
+</div>
+
+<div class="bg-hams-card border border-white/5 rounded-2xl p-4 mb-4">
+  <label class="block text-xs text-slate-500 mb-2">Or enter a label token / asset URL manually</label>
+  <div class="flex gap-2">
+    <input id="manual-token" type="text" placeholder="Paste label URL or token" class="flex-1 px-4 py-2.5 rounded-xl bg-hams-bg border border-white/10 text-sm">
+    <button id="manual-lookup" class="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm">Lookup</button>
+  </div>
+</div>
+
+<!-- Result overlay -->
+<div id="result-overlay" class="fixed inset-x-0 bottom-0 z-50 hidden">
+  <div class="bg-hams-card border-t border-white/10 rounded-t-3xl p-6 max-w-lg mx-auto shadow-2xl">
+    <div class="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-2">Asset Detected</div>
+    <div id="asset-name" class="font-heading text-xl font-bold text-white"></div>
+    <div class="flex gap-3 text-xs text-slate-400 mt-1 mb-4">
+      <span id="asset-tag" class="font-mono"></span><span id="asset-status"></span><span id="asset-category"></span>
+    </div>
+    <div class="grid grid-cols-1 gap-2">
+      <a id="link-checkout" href="#" class="hidden flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600/15 text-blue-400 text-sm"><i data-lucide="log-out" class="w-4 h-4"></i>Assign / Checkout</a>
+      <a id="link-checkin" href="#" class="hidden flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-600/15 text-emerald-400 text-sm"><i data-lucide="log-in" class="w-4 h-4"></i>Return / Check-in</a>
+      <a id="link-view" href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 text-slate-300 text-sm"><i data-lucide="eye" class="w-4 h-4"></i>Full Asset Details</a>
+      <button id="continue-scan" class="px-4 py-3 rounded-xl text-slate-500 text-sm hover:text-white">Continue Scanning</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var overlay = document.getElementById('result-overlay');
+  var statusEl = document.getElementById('scan-status');
+
+  async function lookupToken(token) {
+    statusEl.textContent = 'Looking up...';
+    try {
+      var res = await fetch('<%= hams_url('/api/scan') %>/' + encodeURIComponent(token));
+      var data = await res.json();
+      if (!data.ok) { statusEl.textContent = data.message || 'Not found'; return; }
+      document.getElementById('asset-name').textContent = data.asset.name;
+      document.getElementById('asset-tag').textContent = data.asset.asset_tag;
+      document.getElementById('asset-status').textContent = data.asset.status;
+      document.getElementById('asset-category').textContent = data.asset.category || '';
+      document.getElementById('link-view').href = data.links.view;
+      document.getElementById('link-checkout').classList.toggle('hidden', !data.actions.can_checkout);
+      document.getElementById('link-checkout').href = data.links.view;
+      document.getElementById('link-checkin').classList.toggle('hidden', !data.actions.can_checkin);
+      document.getElementById('link-checkin').href = data.links.view;
+      overlay.classList.remove('hidden');
+      if (navigator.vibrate) navigator.vibrate(80);
+      statusEl.textContent = 'Found';
+    } catch (e) { statusEl.textContent = 'Lookup failed'; }
+  }
+
+  function extractToken(value) {
+    var m = String(value).match(/\/labels\/assets\/([a-zA-Z0-9]+)/);
+    return m ? m[1] : value.trim();
+  }
+
+  document.getElementById('manual-lookup').addEventListener('click', function() {
+    var v = document.getElementById('manual-token').value;
+    if (v) lookupToken(extractToken(v));
+  });
+  document.getElementById('continue-scan').addEventListener('click', function() { overlay.classList.add('hidden'); });
+
+  document.getElementById('start-scan').addEventListener('click', async function() {
+    if (!('BarcodeDetector' in window)) {
+      statusEl.textContent = 'Scanner unsupported; use manual entry';
+      return;
+    }
+    try {
+      var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      var video = document.createElement('video');
+      video.srcObject = stream; video.setAttribute('playsinline', ''); video.className = 'w-full h-full object-cover';
+      var reader = document.getElementById('reader');
+      reader.innerHTML = ''; reader.appendChild(video);
+      await video.play();
+      statusEl.textContent = 'Scanning...';
+      var detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e'] });
+      var timer = setInterval(async function() {
+        try {
+          var codes = await detector.detect(video);
+          if (codes.length) {
+            clearInterval(timer);
+            stream.getTracks().forEach(function(t) { t.stop(); });
+            lookupToken(extractToken(codes[0].rawValue));
+          }
+        } catch (e) {}
+      }, 400);
+    } catch (e) { statusEl.textContent = 'Camera unavailable'; }
+  });
+})();
+</script>
+</div>
