@@ -64,10 +64,13 @@ async function createBackup(type, data, userId) {
     if (!pgDump) throw new HttpError('pg_dump was not found on this server.', 500);
     const fileName = `hams-${type}-${timestampSlug()}.sql`;
     const filePath = path.join(backupDir, fileName);
-    const res = spawnSync(pgDump, [
-      '-h', config.db.host, '-p', String(config.db.port), '-U', config.db.user,
-      '-d', config.db.database, '-f', filePath
-    ], { env: { ...process.env, PGPASSWORD: config.db.password }, encoding: 'utf8' });
+    const res = config.databaseUrl
+      ? spawnSync(pgDump, [config.databaseUrl, '-f', filePath],
+        { env: { ...process.env, PGSSLMODE: 'require' }, encoding: 'utf8' })
+      : spawnSync(pgDump, [
+        '-h', config.db.host, '-p', String(config.db.port), '-U', config.db.user,
+        '-d', config.db.database, '-f', filePath
+      ], { env: { ...process.env, PGPASSWORD: config.db.password }, encoding: 'utf8' });
     if (res.status !== 0) throw new HttpError('Backup archive was not created. ' + (res.stderr || ''), 500);
     const stat = fs.statSync(filePath);
     const checksum = crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');

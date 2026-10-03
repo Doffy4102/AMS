@@ -1,14 +1,21 @@
 const { Pool } = require('pg');
 const config = require('../config');
 
-const pool = new Pool({
-  host: config.db.host,
-  port: config.db.port,
-  database: config.db.database,
-  user: config.db.user,
-  password: config.db.password,
-  max: 10
-});
+const pool = config.databaseUrl
+  ? new Pool({
+    connectionString: config.databaseUrl,
+    ssl: { rejectUnauthorized: false },
+    max: 10
+  })
+  : new Pool({
+    host: config.db.host,
+    port: config.db.port,
+    database: config.db.database,
+    user: config.db.user,
+    password: config.db.password,
+    ...(config.db.ssl ? { ssl: { rejectUnauthorized: false } } : {}),
+    max: 10
+  });
 
 // Numeric/decimal columns come back as strings by default; leave as-is (views format them).
 

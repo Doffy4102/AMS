@@ -5,14 +5,16 @@ module.exports = {
   appName: process.env.APP_NAME || 'HAMS',
   appEnv: process.env.APP_ENV || 'local',
   appUrl: (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, ''),
-  port: parseInt(process.env.APP_PORT || '3000', 10),
+  port: parseInt(process.env.APP_PORT || process.env.PORT || '3000', 10),
   sessionSecret: process.env.SESSION_SECRET || 'it-hams-secret',
+  databaseUrl: process.env.DATABASE_URL || null,
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
     port: parseInt(process.env.DB_PORT || '5432', 10),
     database: process.env.DB_NAME || 'it_hams',
     user: process.env.DB_USER || 'hams',
-    password: process.env.DB_PASS || 'hams'
+    password: process.env.DB_PASS || 'hams',
+    ssl: process.env.DB_SSL === '1' || !!process.env.DATABASE_URL
   },
   rootDir: path.join(__dirname, '..'),
   storageDir: path.join(__dirname, '..', 'storage'),
